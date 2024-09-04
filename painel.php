@@ -152,30 +152,39 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
 
         .stats {
             display: flex;
-            justify-content: space-around;
+            flex-wrap: wrap;
+            justify-content: center;
             margin-top: 20px;
         }
 
-        .stats .stat-box {
-            background-color: #f4f4f4;
-            border-radius: 8px;
+        .stat-box {
+            background-color: #fff;
+            border-radius: 12px;
             padding: 20px;
             text-align: center;
-            flex: 1;
-            margin: 0 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            flex: 1 1 calc(33.333% - 40px);
+            margin: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .stats .stat-box h3 {
-            margin: 0;
-            font-size: 24px;
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-box h3 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .stat-box p {
+            font-size: 28px;
             color: #2c3e50;
-        }
-
-        .stats .stat-box p {
-            margin: 5px 0 0;
-            font-size: 18px;
-            color: #34495e;
+            margin: 0;
+            font-weight: 700;
         }
 
         @media (max-width: 768px) {
@@ -200,6 +209,7 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -254,42 +264,90 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
                 echo '<h1>Navegue pelo nosso menu!</h1>';
             }
             ?>
-            
+
             <?php
-            $page = isset($_GET['page']) ? $_GET['page'] : 'home';
-            if ($page === 'home') {
-                echo '<div class="stats">
+            if ($page === 'home'): ?>
+                <div style="width: 50%; max-width: 400px; margin: 20px auto;">
+                    <canvas id="produtosFornecedoresChart"></canvas>
+                </div>
+
+                <div class="stats">
                     <div class="stat-box">
-                        <h3>Total de Clientes Ativos</h3>
-                        <p>' . $totalClientesAtivos . '</p>
+                        <h3>Clientes Ativos</h3>
+                        <p><?php echo $totalClientesAtivos; ?></p>
                     </div>
                     <div class="stat-box">
-                        <h3>Total de Clientes Inativos</h3>
-                        <p>' . $totalClientesInativos . '</p>
+                        <h3>Clientes Inativos</h3>
+                        <p><?php echo $totalClientesInativos; ?></p>
                     </div>
                     <div class="stat-box">
-                        <h3>Total de Fornecedores Ativos</h3>
-                        <p>' . $totalFornecedoresAtivos . '</p>
+                        <h3>Fornecedores Ativos</h3>
+                        <p><?php echo $totalFornecedoresAtivos; ?></p>
                     </div>
                     <div class="stat-box">
-                        <h3>Total de Fornecedores Inativos</h3>
-                        <p>' . $totalFornecedoresInativos . '</p>
+                        <h3>Fornecedores Inativos</h3>
+                        <p><?php echo $totalFornecedoresInativos; ?></p>
                     </div>
                     <div class="stat-box">
-                        <h3>Total de Produtos Ativos</h3>
-                        <p>' . $totalProdutosAtivos . '</p>
+                        <h3>Produtos Ativos</h3>
+                        <p><?php echo $totalProdutosAtivos; ?></p>
                     </div>
                     <div class="stat-box">
-                        <h3>Total de Produtos Inativos</h3>
-                        <p>' . $totalProdutosInativos . '</p>
+                        <h3>Produtos Inativos</h3>
+                        <p><?php echo $totalProdutosInativos; ?></p>
                     </div>
-                </div>';
-            }
-            ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <script>
+        var ctx = document.getElementById('produtosFornecedoresChart').getContext('2d');
+        var produtosFornecedoresChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Clientes Ativos', 'Clientes Inativos', 'Fornecedores Ativos', 'Fornecedores Inativos', 'Produtos Ativos', 'Produtos Inativos'],
+                datasets: [{
+                    label: 'Quantidade',
+                    data: [
+                        <?php echo $totalClientesAtivos; ?>,
+                        <?php echo $totalClientesInativos; ?>,
+                        <?php echo $totalFornecedoresAtivos; ?>,
+                        <?php echo $totalFornecedoresInativos; ?>,
+                        <?php echo $totalProdutosAtivos; ?>,
+                        <?php echo $totalProdutosInativos; ?>
+                    ],
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#FF9F40',
+                        '#C8E6C9',
+                        '#FFAB91'
+                    ],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                var label = tooltipItem.label || '';
+                                var value = tooltipItem.raw || 0;
+                                return label + ': ' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         function toggleMenu(id) {
             var menu = document.getElementById(id);
             var arrow = menu.previousElementSibling.querySelector('.arrow');

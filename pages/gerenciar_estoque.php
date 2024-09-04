@@ -61,12 +61,12 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
 // Atualização de quantidade (permanece o mesmo)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
     $produto_id = $_POST['produto_id'];
-    $nova_quantidade = $_POST['quantidade'];
+    $nova_quantidade = $_POST['estoque_minimo'];
 
-    // Preparar e executar a consulta SQL para atualizar a quantidade
-    $sqlUpdate = "UPDATE produtos SET quantidade = :quantidade WHERE id = :produto_id";
+    // Preparar e executar a consulta SQL para atualizar a estoque_minimo
+    $sqlUpdate = "UPDATE produtos SET estoque_minimo = :estoque_minimo WHERE id = :produto_id";
     $stmtUpdate = $conn->prepare($sqlUpdate);
-    $stmtUpdate->bindParam(':quantidade', $nova_quantidade);
+    $stmtUpdate->bindParam(':estoque_minimo', $nova_quantidade);
     $stmtUpdate->bindParam(':produto_id', $produto_id);
 
     try {
@@ -186,7 +186,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
                     <td>
                         <form method="post" action="">
                             <input type="hidden" name="produto_id" value="<?php echo $produto['id']; ?>">
-                            <input type="number" placeholder="Quantidade" name="quantidade" min="0" required>
+                            <input type="number" placeholder="estoque " name="quantidade" min="0" required>
                             <button type="submit" class="btn" name="atualizar">Atualizar</button>
                         </form>
                         <?php if ($produto['quantidade'] < $produto['estoque_minimo']): ?>
