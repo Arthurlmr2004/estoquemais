@@ -246,8 +246,20 @@ $totalFornecedoresAtivos = $queryFornecedoresAtivos->fetch(PDO::FETCH_ASSOC)['to
             <h1>Navegue pelo nosso menu!</h1>
 
             <!-- Adicionando o gráfico de pizza -->
-            <div style="width: 70%; max-width: 500px; margin: 20px auto;">
+            <div style="width: 50%; max-width: 400px; margin: 20px auto;">
                 <canvas id="produtosFornecedoresPieChart"></canvas>
+            </div>
+
+            <!-- Dados abaixo do gráfico -->
+            <div class="stats">
+                <div class="stat-box">
+                    <h3><?php echo $totalProdutosAtivos; ?></h3>
+                    <p>Produtos em Estoque</p>
+                </div>
+                <div class="stat-box">
+                    <h3><?php echo $totalFornecedoresAtivos; ?></h3>
+                    <p>Fornecedores Ativos</p>
+                </div>
             </div>
         </div>
     </div>
@@ -268,7 +280,7 @@ $totalFornecedoresAtivos = $queryFornecedoresAtivos->fetch(PDO::FETCH_ASSOC)['to
             }
         }
 
-        // Configuração do gráfico de pizza
+        // Criação do gráfico de pizza
         const ctx = document.getElementById('produtosFornecedoresPieChart').getContext('2d');
         new Chart(ctx, {
             type: 'pie',
