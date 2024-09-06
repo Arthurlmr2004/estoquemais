@@ -149,6 +149,48 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
             /* Vermelho claro para inativo */
             font-weight: bold;
         }
+
+        .filtro-container {
+            display: flex;
+            align-items: center;
+            /* Alinha os itens verticalmente */
+            margin-bottom: 20px;
+            /* Adiciona margem inferior */
+        }
+
+        .filtro-container label {
+            margin-right: 10px;
+            /* Adiciona margem direita ao label */
+        }
+
+        .filtro-container select {
+            padding: 8px 12px;
+            /* Espaçamento interno */
+            font-size: 16px;
+            /* Tamanho da fonte */
+            border: 1px solid #ced4da;
+            /* Borda cinza claro */
+            border-radius: 5px;
+            /* Cantos arredondados */
+            background-color: #fff;
+            /* Posição da seta */
+            background-size: 16px 12px;
+            /* Tamanho da seta */
+        }
+
+        .filtro-container select:focus {
+            outline: none;
+            /* Remove o contorno ao focar */
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            /* Sombra ao focar */
+        }
+
+        .filtro-container select option {
+            background-color: #fff;
+            /* Cor de fundo das opções */
+            color: #343a40;
+            /* Cor do texto das opções */
+        }
     </style>
 </head>
 
@@ -156,10 +198,9 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <h1>Fornecedores</h1>
 
     <!-- Filtro -->
-    <div>
+    <div class="filtro-container">
         <label for="situacao">Filtro:</label>
-        <select id="situacao"
-            onchange="window.location.href='?page=mostrar_fornecedores&situacao=' + this.value;">
+        <select id="situacao" onchange="window.location.href='?page=mostrar_fornecedores&situacao=' + this.value;">
             <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
             <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
             <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
@@ -175,7 +216,6 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <th>Endereço</th>
                 <th>Telefone</th>
                 <th>Email</th>
-                <th>Situação</th>
                 <th>Ações</th>
             </tr>
         </thead>
@@ -187,9 +227,6 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo $fornecedor['endereco']; ?></td>
                     <td><?php echo $fornecedor['telefone']; ?></td>
                     <td><?php echo $fornecedor['email']; ?></td>
-                    <td class="situacao-<?php echo $fornecedor['situacao']; ?>">
-                        <?php echo $fornecedor['situacao']; ?>
-                    </td>
                     <td>
                         <?php if ($fornecedor['situacao'] === 'ativo'): ?>
                             <a href="#"
