@@ -8,7 +8,7 @@ if (!isset($_SESSION['usuario'])) {
 }
 
 // Verifica permissões
-$permissao = isset($_SESSION['permissao']) ? $_SESSION['permissao'] : 'usuario';
+$perfil = $_SESSION['perfil'];
 
 // Inclui a conexão com o banco de dados
 include 'pages/conexao.php';
@@ -215,10 +215,11 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
 <body>
     <div class="container">
         <div class="sidebar">
-            <h2><?php echo ($permissao === 'admin') ? 'Administração' : 'Painel do Usuário'; ?></h2>
+            <h2> <?php if ($perfil === 'admin') 'Administração' ?></h2>
             <img src="images/Logo.png" alt="">
 
-            <?php if ($permissao === 'admin'): ?>
+            <?php if ($perfil === 'admin'): ?>
+                <a href="?page=cadastrar_vendedor">Cadastrar Vendedor</a>
                 <div>
                     <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')">Cadastro de Clientes <span class="arrow down"></span></a>
                     <div id="clientes-menu" class="submenu">
@@ -243,10 +244,46 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
                         <a href="?page=mostrar_produtos&situacao=inativo">Mostrar Produtos Inativos</a>
                     </div>
                 </div>
+                <div>
+                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')">Cadastrar Vendas <span class="arrow down"></span></a>
+                    <div id="cadastrar_vendas" class="submenu">
+                        <a href="?page=cadastro_vendas">Inserir</a>
+                    </div>
+                </div>
                 <a href="?page=entrada_produtos">Entrada de Produtos</a>
                 <a href="?page=saida_produtos">Saída de Produtos</a>
                 <a href="?page=relatorios">Relatórios</a>
+                <a href="?page=ver_compras">Ver Compras Clientes</a>
+
                 <a href="?page=gerenciar_estoque">Gerenciar Estoque</a>
+
+            <?php elseif ($perfil === 'vendedor'): ?>
+                <a href="?page=ver_produtos_usuario">Ver Produtos</a>
+                <div>
+                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')">Cadastrar Vendas <span class="arrow down"></span></a>
+                    <div id="cadastrar_vendas" class="submenu">
+                        <a href="?page=cadastro_vendas">Inserir</a>
+                    </div>
+                </div>
+
+                <div>
+                    <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')">Cadastro de Clientes <span class="arrow down"></span></a>
+                    <div id="clientes-menu" class="submenu">
+                        <a href="?page=cadastro_cliente">Inserir</a>
+                        <a href="?page=mostrar_clientes&situacao=ativo">Mostrar Clientes Ativos</a>
+                        <a href="?page=mostrar_clientes&situacao=inativo">Mostrar Clientes Inativos</a>
+                    </div>
+                </div>
+
+                <div>
+                    <a href="javascript:void(0);" onclick="toggleMenu('fornecedores-menu')">Cadastro de Fornecedores <span class="arrow down"></span></a>
+                    <div id="fornecedores-menu" class="submenu">
+                        <a href="?page=cadastro_fornecedor">Inserir</a>
+                        <a href="?page=mostrar_fornecedores&situacao=ativo">Mostrar Fornecedores Ativos</a>
+                        <a href="?page=mostrar_fornecedores&situacao=inativo">Mostrar Fornecedores Inativos</a>
+                    </div>
+                </div>
+                
             <?php else: ?>
                 <a href="?page=ver_produtos_usuario">Ver Produtos</a>
             <?php endif; ?>

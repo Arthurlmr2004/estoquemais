@@ -7,34 +7,58 @@ if (!isset($_SESSION['usuario'])) {
     exit();
 }
 
-// Obtém a situação dos clientes que devem ser exibidos
-$situacao = isset($_GET['situacao']) ? $_GET['situacao'] : 'ativo';
+// Obtém a situação dos clientes (filtro)
+$situacaoFiltro = isset($_GET['situacao']) ? $_GET['situacao'] : 'todos';
 
+// Consulta SQL para buscar clientes, com filtro opcional
 $sql = "SELECT * FROM clientes";
-if ($situacao === 'ativo') {
-    $sql .= " WHERE situacao = 'ativo'";
-} else {
-    $sql .= " WHERE situacao = 'inativo'";
+if ($situacaoFiltro !== 'todos') {
+    $sql .= " WHERE situacao = :situacao";
 }
+
 $stmt = $conn->prepare($sql);
+if ($situacaoFiltro !== 'todos') {
+    $stmt->bindParam(':situacao', $situacaoFiltro);
+}
 $stmt->execute();
 $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Mostrar Clientes</title>
     <script>
-        function confirmAction(url, action) {
-            if (confirm(`Você tem certeza que deseja ${action} este cliente?`)) {
-                window.location.href = url;
+        function alterarStatusCliente(id, situacaoAtual) {
+            if (!confirm(`Você tem certeza que deseja ${situacaoAtual === 'ativo' ? 'desativar' : 'ativar'} este cliente?`)) {
+                return; // Cancela a ação se o usuário clicar em "Cancelar"
             }
+
+            var xhr = new XMLHttpRequest();
+            var url = "pages/alterar_status_cliente.php?id=" + id + "&situacao=" + ((situacaoAtual === 'ativo') ? 'inativo' : 'ativo');
+
+            xhr.open("GET", url, true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    // Remove a linha da tabela atual
+                    var linha = document.getElementById('cliente-' + id);
+                    linha.remove();
+
+                    // Adiciona a linha na tabela correta (ativos ou inativos)
+                    var tabelaDestino = (situacaoAtual === 'ativo') ? document.getElementById('tabela-inativos') : document.getElementById('tabela-ativos');
+                    var novaLinha = tabelaDestino.insertRow();
+                    novaLinha.id = 'cliente-' + id; // Define o ID da nova linha
+                }
+            };
+
+            xhr.send();
         }
     </script>
     <style>
-         /* Estilos para o botão */
-         .btn {
+        /* Estilos para o botão */
+        .btn {
             display: inline-block;
             padding: 6px 12px;
             font-size: 14px;
@@ -46,22 +70,37 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border: 1px solid transparent;
             border-radius: 4px;
             text-decoration: none;
-            color: #fff; /* Cor padrão do texto do botão */
+            color: #fff;
+            /* Cor padrão do texto do botão */
         }
 
         .btn-danger {
-            background-color: red; /* Vermelho */
+            background-color: red;
+            /* Vermelho */
             border-color: #d43f3a;
         }
 
         .btn-success {
-            background-color: #5cb85c; /* Verde */
+            background-color: #5cb85c;
+            /* Verde */
             border-color: #4cae4c;
         }
     </style>
 </head>
+
 <body>
-    <h1>Clientes - <?php echo ucfirst($situacao); ?></h1>
+    <h1>Clientes</h1>
+
+    <!-- Filtro -->
+    <div>
+        <label for="situacao">Filtro:</label>
+        <select id="situacao" onchange="window.location.href='?page=mostrar_clientes&situacao=' + this.value;">
+            <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
+            <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
+            <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
+        </select>
+    </div>
+
     <table border="1" cellpadding="10" cellspacing="0">
         <thead>
             <tr>
@@ -77,7 +116,7 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </thead>
         <tbody>
             <?php foreach ($clientes as $cliente): ?>
-                <tr>
+                <tr id="cliente-<?php echo $cliente['id']; ?>">
                     <td><?php echo $cliente['id']; ?></td>
                     <td><?php echo $cliente['nome']; ?></td>
                     <td><?php echo $cliente['cpf']; ?></td>
@@ -89,9 +128,9 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </td>
                     <td>
                         <?php if ($cliente['situacao'] === 'ativo'): ?>
-                            <a href="javascript:void(0);" onclick="confirmAction('pages/alterar_status_cliente.php?id=<?php echo $cliente['id']; ?>&situacao=inativo&situacao_anterior=<?php echo $situacao; ?>', 'desativar'); return false;" class="btn btn-danger">Desativar</a>
+                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'ativo'); return false;" class="btn btn-danger">Desativar</a>
                         <?php else: ?>
-                            <a href="javascript:void(0);" onclick="confirmAction('pages/alterar_status_cliente.php?id=<?php echo $cliente['id']; ?>&situacao=ativo&situacao_anterior=<?php echo $situacao; ?>', 'ativar'); return false;" class="btn btn-success">Ativar</a>
+                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'inativo'); return false;" class="btn btn-success">Ativar</a>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -99,4 +138,5 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </tbody>
     </table>
 </body>
+
 </html>

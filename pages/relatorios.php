@@ -101,6 +101,8 @@ try {
             box-shadow: 0 0 0 rgba(0, 0, 0, 0);
         }
 
+
+
         .paginacao a,
         .paginacao span {
             display: inline-block;
@@ -167,6 +169,23 @@ try {
 
         .nav-tabs a.active,
         .nav-tabs a:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .itens_pagina {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .itens_pagina:hover {
             background-color: #007bff;
             color: #fff;
         }

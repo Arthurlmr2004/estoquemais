@@ -122,6 +122,7 @@ $produtos = $stmtProdutos->fetchAll(PDO::FETCH_ASSOC);
 
     <form method="post">
         <label for="produto_id">Produto:</label>
+        
         <select id="produto_id" name="produto_id" required>
             <option value="">Selecione um produto</option>
             <?php foreach ($produtos as $produto): ?>

@@ -4,10 +4,13 @@ include('conexao.php'); // Certifique-se de que o caminho para o arquivo de cone
 session_start();
 
 // Verifica se o usuário está autenticado e tem permissão
-if (!isset($_SESSION['usuario']) || $_SESSION['permissao'] !== 'admin') {
+if (!isset($_SESSION['usuario'])) {
     header('Location: ../login.php');
     exit();
 }
+
+// Obtém o nome de usuário da sessão
+$usuarioLogado = $_SESSION['usuario'];
 
 // Obtém o ID do produto e a situação desejada a partir da URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -26,4 +29,3 @@ if ($id > 0) {
     }
     exit();
 }
-?>

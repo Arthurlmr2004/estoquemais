@@ -3,10 +3,14 @@ include('conexao.php'); // Certifique-se de que o caminho para o arquivo de cone
 session_start(); // Inicie a sessão
 
 // Verifica se o usuário está autenticado e tem permissão
-if (!isset($_SESSION['usuario']) || $_SESSION['permissao'] !== 'admin') {
+if (!isset($_SESSION['usuario'])) {
     header('Location: ../login.php');
     exit();
 }
+
+// Obtém o nome de usuário da sessão
+$usuarioLogado = $_SESSION['usuario'];
+
 
 // Obtém o ID do cliente e a situação desejada a partir da URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -18,8 +22,9 @@ if ($id > 0) {
     $sql = "UPDATE clientes SET situacao = ? WHERE id = ?";
     $stmt = $conn->prepare($sql);
     if ($stmt->execute([$situacao, $id])) {
-        // Redireciona de volta para a mesma página com a situação atualizada
-        header('Location: ../painel.php?page=mostrar_clientes&situacao=' . $situacao_anterior);
+        // Caminho correto para painel.php
+        header('Location: ../painel.php?page=mostrar_clientes&situacao=' . $situacao);
+        exit();
     } else {
         // Em caso de erro, redireciona para a mesma página com uma mensagem de erro
         header('Location: ../painel.php?page=mostrar_clientes&situacao=' . $situacao_anterior . '&erro=1');
