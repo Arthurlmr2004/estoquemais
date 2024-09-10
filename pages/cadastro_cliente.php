@@ -1,5 +1,14 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+include 'funcoes_log.php'; // Inclua o arquivo com a função registrarLog()
+
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
+    header('Location: pages/nao_autorizado.php');
+    exit();
+}
+
+// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
+$usuarioLogado = $_SESSION['usuario'];
 
 // Inicialmente, não exibe o modal
 $showModal = false;
@@ -12,6 +21,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST["email"];
     $endereco = $_POST["endereco"];
 
+    // Obter dados antigos do cliente (se houver)
+    $sqlSelect = "SELECT * FROM clientes WHERE cpf = :cpf";
+    $stmtSelect = $conn->prepare($sqlSelect);
+    $stmtSelect->bindParam(':cpf', $cpf);
+    $stmtSelect->execute();
+    $clienteAntigo = $stmtSelect->fetch(PDO::FETCH_ASSOC);
+
     // Preparar e executar a consulta SQL para inserir o novo cliente
     $sql = "INSERT INTO clientes (nome, cpf, telefone, email, endereco) VALUES (:nome, :cpf, :telefone, :email, :endereco)";
     $stmt = $conn->prepare($sql);
@@ -23,6 +39,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     try {
         $stmt->execute();
+
+        // Crie o comando SQL completo para o log
+        $comandoSqlCompleto = "INSERT INTO clientes (nome, cpf, telefone, email, endereco) VALUES ('" . addslashes($nome) . "', '" . addslashes($cpf) . "', '" . addslashes($telefone) . "', '" . addslashes($email) . "', '" . addslashes($endereco) . "')";
+
+        // Dados novos para o log
+        $dadosNovos = [
+            'nome' => $nome,
+            'cpf' => $cpf,
+            'telefone' => $telefone,
+            'email' => $email,
+            'endereco' => $endereco
+        ];
+
+        // Dados antigos para o log
+        $dadosAntigos = $clienteAntigo ? $clienteAntigo : [];
+
+        // Registra a ação no log
+        registrarLog($conn, $usuarioLogado, 'Inserção', 'clientes', $comandoSqlCompleto, '', json_encode($dadosNovos));
+
         // Exibir o modal somente após a inserção bem-sucedida
         $showModal = true;
     } catch (PDOException $e) {
@@ -76,12 +111,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             text-decoration: none;
             cursor: pointer;
         }
+        h2{
+            color: black;
+        }
     </style>
 </head>
 
 <body>
-
-    <?php include 'includes/header.php'; ?>
 
     <h2>Cadastrar Cliente</h2>
 
@@ -126,7 +162,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         });
     </script>
 
-    <?php include 'includes/footer.php'; ?>
 </body>
 
 </html>

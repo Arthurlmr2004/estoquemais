@@ -1,5 +1,5 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
 
 // Defina o número de produtos por página
 $produtos_por_pagina = 10;
@@ -84,24 +84,22 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             text-decoration: none;
             color: #333;
             /* Cor cinza mais clara */
-            background-color: #f2f2f2;
+            background-color: white;
             /* Cor de fundo clara */
             border: 1px solid #ddd;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .pagination a:hover {
-            background-color: #ddd;
-            /* Cinza mais claro no hover */
-            color: #000;
+            background-color: #007bff;
+            color: #fff;
         }
 
         .pagination .active {
-            font-weight: bold;
+
             color: #fff;
-            background-color: #666;
-            /* Cor ativa cinza escura */
-            border-color: #666;
+            background-color: #007bff;
+            border-color: #007bff;
         }
 
         /* Botão Voltar */

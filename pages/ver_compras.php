@@ -1,5 +1,11 @@
 <?php
-include 'conexao.php'; // Conexão com o banco
+include 'includes/conexao.php'; // Conexão com o banco
+
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+    header('Location: nao_autorizado.php');
+    exit();
+}
+
 $mensagemErro = "";
 $compras = [];
 $cpf = ""; // Inicializa o CPF
@@ -113,7 +119,7 @@ if (!empty($compras)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ver Compras</title>
-    <link rel="stylesheet" href="estilos/estilos.css">
+    <link rel="stylesheet" href="../estilos/estilos.css">
     <style>
         .box {
             background-color: #fff;
@@ -127,7 +133,8 @@ if (!empty($compras)) {
         }
 
         h2 {
-            color: #007bff;
+           background-color: white;
+           
         }
 
         form {

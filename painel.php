@@ -11,7 +11,7 @@ if (!isset($_SESSION['usuario'])) {
 $perfil = $_SESSION['perfil'];
 
 // Inclui a conexão com o banco de dados
-include 'pages/conexao.php';
+include 'includes/conexao.php';
 
 // Obtém a quantidade de clientes ativos e inativos
 $queryClientesAtivos = $conn->query("SELECT COUNT(*) as total FROM clientes WHERE situacao = 'ativo'");
@@ -43,6 +43,7 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel</title>
     <link rel="stylesheet" href="estilos/estilos.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         body {
             margin: 0;
@@ -72,16 +73,22 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
         }
 
         .sidebar a {
-            display: block;
+            display: flex;
+            align-items: center;
             color: #fff;
             padding: 10px;
             text-decoration: none;
             margin-bottom: 10px;
             border-radius: 4px;
+            position: relative;
         }
 
         .sidebar a:hover {
             background-color: #34495e;
+        }
+
+        .sidebar i {
+            margin-right: 10px;
         }
 
         .content {
@@ -135,10 +142,11 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
             height: 0;
             border-left: 5px solid transparent;
             border-right: 5px solid transparent;
-            cursor: pointer;
-            margin-right: 10px;
             border-top: 5px solid #fff;
             transition: transform 0.3s ease;
+            margin-left: auto;
+            margin-right: 10px;
+            vertical-align: middle;
         }
 
         .arrow.down {
@@ -219,75 +227,72 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
             <img src="images/Logo.png" alt="">
 
             <?php if ($perfil === 'admin'): ?>
-                <a href="?page=cadastrar_vendedor">Cadastrar Vendedor</a>
+                <a href="?page=cadastrar_usuario"><i class="fas fa-user-plus"></i> Cadastrar Usuário</a>
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')">Cadastro de Clientes <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')"><i class="fas fa-users"></i> Cadastro de Clientes <span class="arrow down"></span></a>
                     <div id="clientes-menu" class="submenu">
                         <a href="?page=cadastro_cliente">Inserir</a>
-                        <a href="?page=mostrar_clientes&situacao=ativo">Mostrar Clientes Ativos</a>
-                        <a href="?page=mostrar_clientes&situacao=inativo">Mostrar Clientes Inativos</a>
+                        <a href="?page=mostrar_clientes&situacao=todos">Status do Cliente</a>
                     </div>
                 </div>
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('fornecedores-menu')">Cadastro de Fornecedores <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('fornecedores-menu')">
+                        <i class="fas fa-truck"></i> Cadastro de Fornecedores
+                        <span class="arrow down"></span>
+                    </a>
                     <div id="fornecedores-menu" class="submenu">
                         <a href="?page=cadastro_fornecedor">Inserir</a>
-                        <a href="?page=mostrar_fornecedores&situacao=ativo">Mostrar Fornecedores Ativos</a>
-                        <a href="?page=mostrar_fornecedores&situacao=inativo">Mostrar Fornecedores Inativos</a>
+                        <a href="?page=mostrar_fornecedores&situacao=todos">Status do Fornecedor</a>
                     </div>
                 </div>
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('produtos-menu')">Cadastro de Produtos <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('produtos-menu')"><i class="fas fa-box"></i> Cadastro de Produtos <span class="arrow down"></span></a>
                     <div id="produtos-menu" class="submenu">
                         <a href="?page=cadastro_produto">Inserir</a>
-                        <a href="?page=mostrar_produtos&situacao=ativo">Mostrar Produtos Ativos</a>
-                        <a href="?page=mostrar_produtos&situacao=inativo">Mostrar Produtos Inativos</a>
+                        <a href="?page=mostrar_produtos&situacao=ativo">Status do Produto</a>
                     </div>
                 </div>
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')">Cadastrar Vendas <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')"><i class="fas fa-shopping-cart"></i> Cadastrar Vendas <span class="arrow down"></span></a>
                     <div id="cadastrar_vendas" class="submenu">
                         <a href="?page=cadastro_vendas">Inserir</a>
                     </div>
                 </div>
-                <a href="?page=entrada_produtos">Entrada de Produtos</a>
-                <a href="?page=saida_produtos">Saída de Produtos</a>
-                <a href="?page=relatorios">Relatórios</a>
-                <a href="?page=ver_compras">Ver Compras Clientes</a>
-
-                <a href="?page=gerenciar_estoque">Gerenciar Estoque</a>
+                    
+                <a href="?page=relatorios"><i class="fas fa-file-alt"></i> Relatórios</a>
+                <a href="?page=ver_compras"><i class="fas fa-receipt"></i> Ver Compras Clientes</a>
+                <a href="?page=gerenciar_estoque"><i class="fas fa-cogs"></i> Gerenciar Estoque</a>
 
             <?php elseif ($perfil === 'vendedor'): ?>
-                <a href="?page=ver_produtos_usuario">Ver Produtos</a>
+                <a href="?page=ver_produtos_usuario"><i class="fas fa-box-open"></i> Ver Produtos</a>
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')">Cadastrar Vendas <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('cadastrar_vendas')"><i class="fas fa-shopping-cart"></i> Cadastrar Vendas <span class="arrow down"></span></a>
                     <div id="cadastrar_vendas" class="submenu">
                         <a href="?page=cadastro_vendas">Inserir</a>
                     </div>
                 </div>
-
                 <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')">Cadastro de Clientes <span class="arrow down"></span></a>
+                    <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')"><i class="fas fa-users"></i> Cadastro de Clientes <span class="arrow down"></span></a>
                     <div id="clientes-menu" class="submenu">
                         <a href="?page=cadastro_cliente">Inserir</a>
-                        <a href="?page=mostrar_clientes&situacao=ativo">Mostrar Clientes Ativos</a>
-                        <a href="?page=mostrar_clientes&situacao=inativo">Mostrar Clientes Inativos</a>
+                        <a href="?page=mostrar_clientes&situacao=todos">Status do Cliente</a>
+                    </div>
+                </div>
+                <div>
+                    <a href="javascript:void(0);" onclick="toggleMenu('fornecedores-menu')">
+                        <i class="fas fa-truck"></i> Cadastro de Fornecedores
+                        <span class="arrow down"></span>
+                    </a>
+                    <div id="fornecedores-menu" class="submenu">
+                        <a href="?page=cadastro_fornecedor">Inserir</a>
+                        <a href="?page=mostrar_fornecedores&situacao=todos">Status do Fornecedor</a>
                     </div>
                 </div>
 
-                <div>
-                    <a href="javascript:void(0);" onclick="toggleMenu('fornecedores-menu')">Cadastro de Fornecedores <span class="arrow down"></span></a>
-                    <div id="fornecedores-menu" class="submenu">
-                        <a href="?page=cadastro_fornecedor">Inserir</a>
-                        <a href="?page=mostrar_fornecedores&situacao=ativo">Mostrar Fornecedores Ativos</a>
-                        <a href="?page=mostrar_fornecedores&situacao=inativo">Mostrar Fornecedores Inativos</a>
-                    </div>
-                </div>
-                
             <?php else: ?>
-                <a href="?page=ver_produtos_usuario">Ver Produtos</a>
+                <a href="?page=ver_produtos_usuario"><i class="fas fa-box-open"></i> Ver Produtos</a>
             <?php endif; ?>
-            <a href="logout.php">Sair</a>
+            <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Sair</a>
         </div>
 
         <div class="content">

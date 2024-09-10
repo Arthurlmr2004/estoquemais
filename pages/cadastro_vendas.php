@@ -1,5 +1,6 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+include 'funcoes_log.php';
 
 // Função para obter produtos e clientes
 function obterProdutos($conn)
@@ -14,8 +15,17 @@ function obterClientes($conn)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Verifica se o usuário está autenticado
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
+    header('Location: nao_autorizado.php');
+    exit();
+}
+
+// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
+$usuarioLogado = $_SESSION['usuario'];
+
 // Variável para controlar exibição do modal
-$showModal = false; // Inicialmente, o modal está fechado
+$showModal = false;
 
 // Lógica de submissão do formulário
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -25,21 +35,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $preco_total = $_POST['preco_total'];
     $data_venda = $_POST['data_venda'];
 
-    // Verificando se a data inserida está entre 2020 e 2200
+    // Verificando se a data inserida está no ano atual
     $data_venda_timestamp = strtotime($data_venda);
-    $data_minima = strtotime('2020-01-01');
-    $data_maxima = strtotime('2200-12-31');
+    $ano_atual = date('Y');
+    $data_minima = strtotime("$ano_atual-01-01");
+    $data_maxima = strtotime("$ano_atual-12-31");
 
     if ($data_venda_timestamp < $data_minima || $data_venda_timestamp > $data_maxima) {
-        echo "<script>alert('Erro: A data da venda deve estar entre 2020 e 2200.');</script>";
+        echo "<script>alert('Erro: A data da venda deve estar dentro do ano atual.');</script>";
     } else {
-        // Inserindo a venda no banco de dados
-        $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES (?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        if ($stmt->execute([$produto_id, $cliente_id, $quantidade, $preco_total, $data_venda])) {
-            $showModal = true; // Mostrar modal ao cadastrar com sucesso
-        } else {
-            echo "Erro ao cadastrar venda.";
+        try {
+            // Inserindo a venda no banco de dados
+            $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':produto_id', $produto_id);
+            $stmt->bindParam(':cliente_id', $cliente_id);
+            $stmt->bindParam(':quantidade', $quantidade);
+            $stmt->bindParam(':preco_total', $preco_total);
+            $stmt->bindParam(':data_venda', $data_venda);
+
+            if ($stmt->execute()) {
+                // Cria uma descrição detalhada das mudanças para o log
+                $mudancas = [
+                    "Produto ID: $produto_id",
+                    "Cliente ID: $cliente_id",
+                    "Quantidade: $quantidade",
+                    "Preço Total: R$ $preco_total",
+                    "Data da Venda: $data_venda"
+                ];
+
+                // Converter as mudanças para uma string
+                $descricaoMudancas = implode("; ", $mudancas);
+
+                // Cria o comando SQL completo para o log
+                $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda')";
+
+                // Registra a ação no log, incluindo a descrição das mudanças
+                registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
+
+                $showModal = true; // Mostrar modal ao cadastrar com sucesso
+            } else {
+                echo "Erro ao cadastrar venda.";
+            }
+        } catch (PDOException $e) {
+            echo "Erro ao cadastrar venda: " . $e->getMessage();
         }
     }
 }
@@ -68,6 +107,10 @@ $clientes = obterClientes($conn);
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
         }
 
         /* Estilo do campo de data */

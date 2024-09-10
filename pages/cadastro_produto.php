@@ -1,5 +1,14 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+include 'funcoes_log.php';
+
+// Verifica se o usuário está autenticado como admin ou vendedor
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+    header('Location: nao_autorizado.php');
+    exit();
+}
+
+$usuarioLogado = $_SESSION['usuario'];
 
 // Inicialmente, não exibe o modal
 $showModal = false;
@@ -23,36 +32,58 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] == 0) {
         $nomeImagem = $_FILES['imagem']['name'];
         $tempImagem = $_FILES['imagem']['tmp_name'];
-        $pastaDestino = 'uploads/';  // Diretório onde a imagem será salva
+        $pastaDestino = 'uploads/';
 
-        // Cria o diretório se não existir
         if (!is_dir($pastaDestino)) {
             mkdir($pastaDestino, 0755, true);
         }
 
-        // Gera um nome único para a imagem e move para a pasta de destino
         $caminhoImagem = $pastaDestino . uniqid() . '_' . $nomeImagem;
         if (move_uploaded_file($tempImagem, $caminhoImagem)) {
             $imagem = $caminhoImagem;
         }
     }
 
-    // Preparar e executar a consulta SQL para inserir o novo produto
-    $sql = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
-            VALUES (:nome, :descricao, :preco, :quantidade, :estoque_minimo, :estoque_maximo, :fornecedor_id, :imagem)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':nome', $nome);
-    $stmt->bindParam(':descricao', $descricao);
-    $stmt->bindParam(':preco', $preco);
-    $stmt->bindParam(':quantidade', $quantidade);
-    $stmt->bindParam(':estoque_minimo', $estoque_minimo);
-    $stmt->bindParam(':estoque_maximo', $estoque_maximo);
-    $stmt->bindParam(':fornecedor_id', $fornecedor_id);
-    $stmt->bindParam(':imagem', $imagem);
-
     try {
-        $stmt->execute();
-        $showModal = true;
+        $sql = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
+                VALUES (:nome, :descricao, :preco, :quantidade, :estoque_minimo, :estoque_maximo, :fornecedor_id, :imagem)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':nome', $nome);
+        $stmt->bindParam(':descricao', $descricao);
+        $stmt->bindParam(':preco', $preco);
+        $stmt->bindParam(':quantidade', $quantidade);
+        $stmt->bindParam(':estoque_minimo', $estoque_minimo);
+        $stmt->bindParam(':estoque_maximo', $estoque_maximo);
+        $stmt->bindParam(':fornecedor_id', $fornecedor_id);
+        $stmt->bindParam(':imagem', $imagem);
+
+        if ($stmt->execute()) {
+            // Crie uma descrição detalhada das mudanças para o log
+            $mudancas = [
+                "Nome: $nome",
+                "Descrição: $descricao",
+                "Preço: R$ $preco",
+                "Quantidade: $quantidade",
+                "Estoque Mínimo: $estoque_minimo",
+                "Estoque Máximo: $estoque_maximo",
+                "Fornecedor ID: $fornecedor_id",
+                "Imagem: " . ($imagem ? $imagem : 'Sem imagem')
+            ];
+
+            // Converter as mudanças para uma string
+            $descricaoMudancas = implode("; ", $mudancas);
+
+            // Cria o comando SQL completo para o log
+            $comandoSqlCompleto = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
+                                   VALUES ('" . addslashes($nome) . "', '" . addslashes($descricao) . "', $preco, $quantidade, $estoque_minimo, $estoque_maximo, $fornecedor_id, '" . addslashes($imagem) . "')";
+
+            // Registra a ação no log, incluindo a descrição das mudanças
+            registrarLog($conn, $usuarioLogado, 'Inserção de Produto', 'produtos', $comandoSqlCompleto, '', $descricaoMudancas);
+
+            $showModal = true;
+        } else {
+            echo "Erro ao cadastrar o produto.";
+        }
     } catch (PDOException $e) {
         echo "Erro ao cadastrar o produto: " . $e->getMessage();
     }
@@ -150,12 +181,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             object-fit: contain;
             display: block;
         }
+        h2{
+           
+            color: black;
+        }
     </style>
 </head>
 
 <body>
 
-    <?php include 'includes/header.php'; ?>
 
     <h2>Cadastrar Produto</h2>
 
@@ -231,7 +265,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     </script>
 
-    <?php include 'includes/footer.php'; ?>
 </body>
 
 </html>

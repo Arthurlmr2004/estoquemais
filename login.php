@@ -1,5 +1,5 @@
 <?php
-include 'pages/conexao.php';
+include 'includes/conexao.php';
 session_start();
 
 if (isset($_SESSION['usuario'])) {
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .login-box input[type="submit"] {
             padding: 10px;
-            background-color: #3498db;
+            background-color: #007bff;
             color: #fff;
             border: none;
             border-radius: 5px;
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .login-box input[type="submit"]:hover {
-            background-color: #2980b9;
+            background-color: #0056b3;
         }
 
         .content-button {

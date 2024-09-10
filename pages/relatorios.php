@@ -1,5 +1,10 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
+    header('Location: nao_autorizado.php');
+    exit();
+}
 
 // Função para paginação
 function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
@@ -10,7 +15,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>&laquo; Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>« Anterior</a>";
     }
 
     // Links para as páginas
@@ -25,7 +30,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo &raquo;</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo »</a>";
     }
 
     $paginacaoHTML .= '</div>';
@@ -33,7 +38,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
 }
 
 // Parâmetros da paginação
-$itensPorPagina = isset($_POST['botao']) ? (int)$_POST['botao'] : (isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5); // Pega o valor do botão ou define 5 como padrão
+$itensPorPagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5; // Define 5 como padrão
 $paginaAtual = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
 $offset = ($paginaAtual - 1) * $itensPorPagina;
 
@@ -83,6 +88,7 @@ try {
 }
 ?>
 
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -91,17 +97,17 @@ try {
     <title>Relatórios</title>
     <link rel="stylesheet" href="../estilos/estilos.css">
     <style>
+        h2 {
+            text-align: center;
+            font-size: 2rem;
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
         .paginacao {
             text-align: center;
             margin: 20px 0;
         }
-
-        .form_itenspagina {
-            background: transparent;
-            box-shadow: 0 0 0 rgba(0, 0, 0, 0);
-        }
-
-
 
         .paginacao a,
         .paginacao span {
@@ -114,6 +120,7 @@ try {
             background-color: white;
             border: 1px solid #ddd;
             transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
         }
 
         .paginacao a:hover {
@@ -128,31 +135,35 @@ try {
             border-color: #007bff;
         }
 
-        .botao-voltar {
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            float: right;
-        }
-
-        .botao-voltar:hover {
-            background-color: #0056b3;
+        /* Estilos para posicionar a paginação e os botões dentro da tabela */
+        #tabelaRelatorio tfoot a:hover {
+            background-color: transparent !important;
+            /* Remove a cor de fundo no hover */
+            color: #007bff !important;
+            /* Mantém a cor do texto no hover */
         }
 
         .nav-tabs {
+            display: flex;
+            justify-content: flex-start;
+            /* Alinha as abas à esquerda */
+            align-items: center;
             list-style: none;
             padding: 0;
-            margin: 0;
-            text-align: center;
+            margin: 0 0 10px 0;
         }
 
         .nav-tabs li {
-            display: inline;
+            display: inline-block;
+        }
+
+        .form_itenspagina {
+            background: none;
+            box-shadow: none;
+            display: inline-block;
+            /* Permite que o form fique ao lado dos links */
+            margin-left: 20px;
+            /* Espaçamento entre os links e os botões */
         }
 
         .nav-tabs a {
@@ -161,7 +172,7 @@ try {
             margin: 0 5px;
             text-decoration: none;
             color: #007bff;
-            background-color: red;
+            background-color: white;
             border: 1px solid #ddd;
             border-radius: 5px;
             transition: background-color 0.3s ease, color 0.3s ease;
@@ -173,49 +184,130 @@ try {
             color: #fff;
         }
 
-        .itens_pagina {
-            display: inline-block;
-            padding: 10px 15px;
-            margin: 0 5px;
-            border-radius: 5px;
-            text-decoration: none;
-            cursor: pointer;
-            background-color: white;
-            border: 1px solid #ddd;
-            transition: background-color 0.3s ease, color 0.3s ease;
+        .itens-por-pagina {
+            margin-bottom: 20px;
+            /* Espaçamento abaixo do select */
         }
 
-        .itens_pagina:hover {
+        .itens-por-pagina label {
+            display: inline-block;
+            margin-right: 5px;
+
+        }
+
+        .itens-por-pagina select {
+            padding: 6px 10px;
+            font-size: 16px;
+            border: 1px solid black;
+            border-radius: 4px;
+
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th,
+        table td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+
+        /* Estilos para linhas pares e ímpares */
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+            /* Cor mais clara para linhas pares */
+        }
+
+        table tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+            /* Branco para linhas ímpares */
+        }
+
+        table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Classe para o container dos botões */
+        .botoes-paginacao {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Adiciona uma margem à esquerda do segundo botão */
+        .botoes-paginacao {
+            margin-left: 10px;
+        }
+
+        .botao-voltar {
+            display: inline-block;
+            margin: 20px 0;
+            padding: 10px 20px;
             background-color: #007bff;
             color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+
+        .botao-voltar:hover {
+            background-color: #0056b3;
+        }
+
+        .form_itenspagina {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .tab-content {
+            border: 0 solid #ddd !important;
+        }
+
+        .tab-content h3 {
+            font-size: 1.5rem;
+            margin-top: 20px;
+            color: #333;
+            text-align: center;
+
         }
     </style>
 </head>
 
 <body>
-    <h2>Relatórios</h2>
-
-    <ul class="nav-tabs">
-        <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
-        <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
-        <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
-    </ul>
-
-    <!-- Form para enviar valor a variável $itensPorPagina e definir quantos registros vão aparecer por página -->
-    <form class="form_itenspagina" method="post" action="painel.php?page=relatorios&aba=<?php echo $aba; ?>">
-        <button class="itens_pagina" type="submit" name="botao" value="5">5</button>
-        <button class="itens_pagina" type="submit" name="botao" value="10">10</button>
-    </form>
-
-    <div class="navegacao">
-        <?php echo $paginacaoHTML; ?>
+ 
+    <div class="itens-por-pagina">
+        <label for="itensPorPagina">Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='?page=relatorios&aba=<?php echo $aba; ?>&itensPorPagina=' + this.value;">
+            <option value="5" <?php if ($itensPorPagina == 5) echo 'selected'; ?>>5</option>
+            <option value="10" <?php if ($itensPorPagina == 10) echo 'selected'; ?>>10</option>
+        </select>
     </div>
-
     <div class="tab-content">
         <?php if ($aba === 'estoque'): ?>
             <h3>Relatório de Estoque</h3>
-            <table>
+
+            <table id="tabelaRelatorio">
                 <thead>
+                    <tr>
+                        <th colspan="5">
+                            <ul class="nav-tabs">
+                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
+                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
+                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
+                            </ul>
+                        </th>
+                    </tr>
                     <tr>
                         <th>Nome do Produto</th>
                         <th>Descrição</th>
@@ -235,11 +327,27 @@ try {
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5">
+                            <?php echo $paginacaoHTML; ?>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         <?php elseif ($aba === 'saidas'): ?>
             <h3>Relatório de Saídas</h3>
-            <table>
+            <table id="tabelaRelatorio">
                 <thead>
+                    <tr>
+                        <th colspan="5">
+                            <ul class="nav-tabs">
+                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
+                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
+                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
+                            </ul>
+                        </th>
+                    </tr>
                     <tr>
                         <th>ID</th>
                         <th>Data de Saída</th>
@@ -259,11 +367,27 @@ try {
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5">
+                            <?php echo $paginacaoHTML; ?>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         <?php elseif ($aba === 'entradas'): ?>
             <h3>Relatório de Entradas</h3>
-            <table>
+            <table id="tabelaRelatorio">
                 <thead>
+                    <tr>
+                        <th colspan="5">
+                            <ul class="nav-tabs">
+                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
+                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
+                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
+                            </ul>
+                        </th>
+                    </tr>
                     <tr>
                         <th>ID</th>
                         <th>Data de Entrada</th>
@@ -283,6 +407,13 @@ try {
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5">
+                            <?php echo $paginacaoHTML; ?>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         <?php endif; ?>
     </div>

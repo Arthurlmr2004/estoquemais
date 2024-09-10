@@ -1,19 +1,27 @@
 <?php
+include 'includes/conexao.php';
+include 'funcoes_log.php';
+
 // Verifica se o usuário está autenticado como admin
 if (!isset($_SESSION['perfil']) || $_SESSION['perfil'] !== 'admin') {
-    header('Location: nao_autorizado.php'); // Redireciona se não for admin
+    header('Location: nao_autorizado.php');
     exit();
 }
 
-include 'conexao.php';
+// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
+$usuarioLogado = $_SESSION['usuario'];
 
 $usuario = "";
+$senha = "";
+$confirmarSenha = "";
+$perfil = "vendedor"; // Valor padrão
 $mensagem = ""; // Variável para mensagens de erro ou sucesso
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario = $_POST['usuario'];
     $senha = $_POST['senha'];
     $confirmarSenha = $_POST['confirmar_senha'];
+    $perfil = $_POST['perfil'];
 
     // Validações básicas
     if (empty($usuario) || empty($senha) || empty($confirmarSenha)) {
@@ -30,21 +38,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->rowCount() > 0) {
             $mensagem = "Usuário já cadastrado!";
         } else {
-            // Insere o novo vendedor
-            $sql = "INSERT INTO usuarios (usuario, senha, perfil) VALUES (:usuario, :senha, 'vendedor')";
+            // Insere o novo usuário
+            $sql = "INSERT INTO usuarios (usuario, senha, perfil) VALUES (:usuario, :senha, :perfil)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':usuario', $usuario);
             $stmt->bindParam(':senha', $senha);
+            $stmt->bindParam(':perfil', $perfil);
             $stmt->execute();
 
             if ($stmt->rowCount() > 0) {
-                $mensagem = "Vendedor cadastrado com sucesso!";
-                // Limpa os campos após o cadastro
+                // Para um log mais legível, descrever as mudanças
+                $mudancas = [
+                    "Usuário: " . $usuario,
+                    "Perfil: " . $perfil
+                ];
+
+                // Converter as mudanças para uma string
+                $descricaoMudancas = implode("; ", $mudancas);
+
+                // Cria o comando SQL completo para o log
+                $comandoSqlCompleto = "INSERT INTO usuarios (usuario, senha, perfil) VALUES ('" . addslashes($usuario) . "', '" . addslashes($senha) . "', '" . addslashes($perfil) . "')";
+
+                // Registra a ação no log, incluindo a descrição das mudanças e os dados novos
+                registrarLog($conn, $usuarioLogado, 'Inserção de Usuário', 'usuarios', $comandoSqlCompleto, '', $descricaoMudancas);
+
+                $mensagem = "Usuário cadastrado com sucesso!";
+                // Limpa os campos
                 $usuario = "";
                 $senha = "";
                 $confirmarSenha = "";
+                $perfil = "vendedor";
             } else {
-                $mensagem = "Erro ao cadastrar vendedor!";
+                $mensagem = "Erro ao cadastrar usuário!";
             }
         }
     }
@@ -57,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastrar Vendedor</title>
+    <title>Cadastrar Usuário</title>
     <link rel="stylesheet" href="../estilos/estilos.css">
     <style>
         .cadastro-box {
@@ -93,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .cadastro-box input[type="submit"] {
             padding: 10px;
-            background-color: #3498db;
+            background-color: #007bff;
             color: #fff;
             border: none;
             border-radius: 5px;
@@ -101,14 +126,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .cadastro-box input[type="submit"]:hover {
-            background-color: #2980b9;
+            background-color: #0056b3;
         }
 
         .mensagem {
             text-align: center;
             margin-top: 15px;
             font-weight: bold;
-            color: <?php echo ($mensagem === "Vendedor cadastrado com sucesso!") ? 'green' : 'red'; ?>;
+            color: <?php echo ($mensagem === "Usuário cadastrado com sucesso!") ? 'green' : 'red'; ?>;
+        }
+
+        h2 {
+            background-color: white;
+            color: black;
         }
     </style>
 </head>
@@ -116,17 +146,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="container">
         <div class="cadastro-box">
-            <h2>Cadastrar Vendedor</h2>
+            <h2>Cadastrar Usuário</h2>
             <?php if (!empty($mensagem)): ?>
                 <p class="mensagem"><?php echo $mensagem; ?></p>
             <?php endif; ?>
-            <form action="painel.php?page=cadastrar_vendedor" method="post">
+            <form action="painel.php?page=cadastrar_usuario" method="post">
                 <label for="usuario">Usuário:</label>
-                <input type="text" id="usuario" name="usuario" required value="<?php echo $usuario; ?>"> <label for="senha">Senha:</label>
-                <input type="password" id="senha" name="senha" required>
+                <input type="text" id="usuario" name="usuario" placeholder="Digite o nome do usuário" required value="<?php echo htmlspecialchars($usuario); ?>">
+
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" name="senha" placeholder="Digite a senha" required>
 
                 <label for="confirmar_senha">Confirmar Senha:</label>
-                <input type="password" id="confirmar_senha" name="confirmar_senha" required>
+                <input type="password" id="confirmar_senha" name="confirmar_senha" placeholder="Confirme a senha" required>
+
+                <label for="perfil">Permissão:</label>
+                <select id="perfil" name="perfil">
+                    <option value="vendedor" <?php echo ($perfil === 'vendedor') ? 'selected' : ''; ?>>Vendedor</option>
+                    <option value="admin" <?php echo ($perfil === 'admin') ? 'selected' : ''; ?>>Administrador</option>
+                </select>
 
                 <input type="submit" value="Cadastrar">
             </form>

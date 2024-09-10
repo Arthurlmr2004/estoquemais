@@ -1,7 +1,7 @@
 /* Estilos gerais */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #e5e5f7;
+    background-color: #EBEAE9;
     color: #333;
     margin: 0;
     padding: 0;
@@ -84,13 +84,14 @@ table {
     width: 100%;
     border-collapse: collapse;
     margin: 20px 0;
+    border: none; /* Remove a borda da tabela */
 }
 
 table th,
 table td {
     padding: 12px;
+    border: none; /* Remove a borda das células */
     text-align: left;
-    border-bottom: 1px solid #ddd;
 }
 
 table th {
@@ -109,7 +110,7 @@ table tr:hover {
 
 /* Estilos adicionais */
 h2 {
-    color: #34495e;
+    color: black;
     text-align: center;
     margin-top: 30px;
     font-size: 28px;
@@ -126,45 +127,6 @@ p {
 
 /*parte do relatorios */
 
-.nav-tabs {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    overflow: hidden; 
-  }
-  
-  .nav-tabs li {
-    float: left; 
-  }
-  
-  .nav-tabs li a {
-    display: block;
-    padding: 10px 15px;
-    background-color: #eee;
-    border: 1px solid #ddd;
-    text-decoration: none;
-    color: #333;
-  }
-  
-  .nav-tabs li a.active,
-  .nav-tabs li a:hover {
-    background-color: #007bff;
-  }
-  
-  .tab-content {
-    clear: both;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-top: none;
-  }
-  
-  .tab-pane {
-    display: none; 
-  }
-  
-  .tab-pane.active {
-    display: block; 
-  }
 
 /* Estilos para a mensagem de erro */
 

@@ -1,8 +1,20 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+include 'funcoes_log.php'; // Inclua o arquivo com a função registrarLog()
+
+// Verifica se o usuário está autenticado como admin ou vendedor
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
+    header('Location: nao_autorizado.php');
+    exit();
+}
+
+// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
+$usuarioLogado = $_SESSION['usuario'];
 
 // Inicialmente, não exibe o modal
 $showModal = false;
+$showErrorModal = false;
+$errorMessage = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Obter dados do formulário
@@ -11,28 +23,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $telefone = $_POST["telefone"];
     $email = $_POST["email"];
     $cnpj = $_POST["cnpj"];
-    $situacao = 'ativo'; // Define a situacao como 'ativo' por padrão
+    $situacao = 'ativo';
 
     try {
-        // Preparar e executar a consulta SQL
-        $sql = "INSERT INTO fornecedores (nome, endereco, telefone, email, cnpj, situacao) VALUES (:nome, :endereco, :telefone, :email, :cnpj, :situacao)";
-        $stmt = $conn->prepare($sql);
+        // Verificar se o CNPJ já existe
+        $sqlCheck = "SELECT COUNT(*) FROM fornecedores WHERE cnpj = :cnpj";
+        $stmtCheck = $conn->prepare($sqlCheck);
+        $stmtCheck->bindParam(':cnpj', $cnpj);
+        $stmtCheck->execute();
+        $count = $stmtCheck->fetchColumn();
 
-        $stmt->bindParam(':nome', $nome);
-        $stmt->bindParam(':endereco', $endereco);
-        $stmt->bindParam(':telefone', $telefone);
-        $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':cnpj', $cnpj);
-        $stmt->bindParam(':situacao', $situacao);
-
-        if ($stmt->execute()) {
-            // Cadastro bem-sucedido
-            $showModal = true;
+        if ($count > 0) {
+            // CNPJ já existe
+            $errorMessage = "Erro: Um fornecedor com este CNPJ já está cadastrado.";
+            $showErrorModal = true;
         } else {
-            echo "Erro ao cadastrar o fornecedor.";
+            // Preparar e executar a consulta SQL
+            $sql = "INSERT INTO fornecedores (nome, endereco, telefone, email, cnpj, situacao) VALUES (:nome, :endereco, :telefone, :email, :cnpj, :situacao)";
+            $stmt = $conn->prepare($sql);
+
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':endereco', $endereco);
+            $stmt->bindParam(':telefone', $telefone);
+            $stmt->bindParam(':email', $email);
+            $stmt->bindParam(':cnpj', $cnpj);
+            $stmt->bindParam(':situacao', $situacao);
+
+            if ($stmt->execute()) {
+                // Para um log mais legível, descrever as mudanças
+                $mudancas = [
+                    "Nome: " . $nome,
+                    "Endereço: " . $endereco,
+                    "Telefone: " . $telefone,
+                    "Email: " . $email,
+                    "CNPJ: " . $cnpj,
+                    "Situação: " . $situacao
+                ];
+
+                // Converter as mudanças para uma string
+                $descricaoMudancas = implode("; ", $mudancas);
+
+                // Cria o comando SQL completo para o log
+                $comandoSqlCompleto = "INSERT INTO fornecedores (nome, endereco, telefone, email, cnpj, situacao) VALUES ('" . addslashes($nome) . "', '" . addslashes($endereco) . "', '" . addslashes($telefone) . "', '" . addslashes($email) . "', '" . addslashes($cnpj) . "', '" . addslashes($situacao) . "')";
+
+                // Registra a ação no log, incluindo a descrição das mudanças e os dados novos
+                registrarLog($conn, $usuarioLogado, 'Inserção de Fornecedor', 'fornecedores', $comandoSqlCompleto, '', $descricaoMudancas);
+
+                // Cadastro bem-sucedido
+                $showModal = true;
+            } else {
+                $errorMessage = "Erro ao cadastrar o fornecedor.";
+                $showErrorModal = true;
+            }
         }
     } catch (PDOException $e) {
-        echo "Erro ao cadastrar o fornecedor: " . $e->getMessage();
+        $errorMessage = "Erro ao cadastrar o fornecedor: " . $e->getMessage();
+        $showErrorModal = true;
     }
 }
 ?>
@@ -82,15 +128,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             text-decoration: none;
             cursor: pointer;
         }
+
+        h2 {
+
+            color: black;
+        }
     </style>
 </head>
 
 <body>
-
-    <?php include 'includes/header.php'; ?>
-
     <h2>Cadastrar Fornecedor</h2>
-
     <form method="post" id="cadastroForm">
         <label for="nome">Nome:</label>
         <input type="text" id="nome" name="nome" placeholder="Nome do fornecedor" required>
@@ -120,21 +167,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
+    <div id="errorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeErrorModal()">&times;</span>
+            <p class="error"><?php echo htmlspecialchars($errorMessage); ?></p>
+        </div>
+    </div>
+
     <script>
         // Script para exibir a janela modal
         function closeModal() {
             document.getElementById('successModal').style.display = 'none';
         }
 
+        function closeErrorModal() {
+            document.getElementById('errorModal').style.display = 'none';
+        }
+
         // Mostrar a janela modal se a variável PHP $showModal for true
         document.addEventListener('DOMContentLoaded', function() {
             <?php if ($showModal): ?>
                 document.getElementById('successModal').style.display = 'flex';
+            <?php elseif ($showErrorModal): ?>
+                document.getElementById('errorModal').style.display = 'flex';
             <?php endif; ?>
         });
     </script>
-
-    <?php include 'includes/footer.php'; ?>
 </body>
 
 </html>

@@ -1,5 +1,10 @@
 <?php
-include 'conexao.php';
+include 'includes/conexao.php';
+
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
+    header('Location: nao_autorizado.php');
+    exit();
+}
 
 // Função para paginação
 function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
@@ -10,7 +15,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>&laquo; Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>« Anterior</a>";
     }
 
     // Links para as páginas
@@ -25,13 +30,12 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo &raquo;</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo »</a>";
     }
 
     $paginacaoHTML .= '</div>';
     return $paginacaoHTML;
 }
-
 
 // Parâmetros da paginação
 $itensPorPagina = 3; // Quantidade de itens por página
@@ -60,14 +64,14 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
 
 // Atualização de quantidade (permanece o mesmo)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
-    $produto_id = $_POST['produto_id'];
+    $produto_id = $_POST['id'];
     $nova_quantidade = $_POST['estoque_minimo'];
 
     // Preparar e executar a consulta SQL para atualizar a estoque_minimo
-    $sqlUpdate = "UPDATE produtos SET estoque_minimo = :estoque_minimo WHERE id = :produto_id";
+    $sqlUpdate = "UPDATE produtos SET estoque_minimo = :estoque_minimo WHERE id = :id";
     $stmtUpdate = $conn->prepare($sqlUpdate);
     $stmtUpdate->bindParam(':estoque_minimo', $nova_quantidade);
-    $stmtUpdate->bindParam(':produto_id', $produto_id);
+    $stmtUpdate->bindParam(':id', $produto_id);
 
     try {
         $stmtUpdate->execute();
@@ -84,40 +88,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
 <head>
     <meta charset="UTF-8">
     <title>Gerenciamento de Estoque</title>
-    <link rel="stylesheet" href="estilos/estilos.css">
+    <link rel="stylesheet" href="../estilos/estilos.css">
     <style>
-        .paginacao {
+        h2 {
             text-align: center;
-            margin: 20px 0;
+            font-size: 2rem;
+            color: black;
+            margin-bottom: 20px;
         }
 
-        .paginacao a,
-        .paginacao span {
-            display: inline-block;
-            padding: 10px 15px;
-            margin: 0 5px;
-            border-radius: 5px;
-            text-decoration: none;
-            color: #007bff;
-            background-color: #f8f9fa;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            
+        }
+
+        table th,
+        table td {
+            padding: 10px;
             border: 1px solid #ddd;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            text-align: left;
+            
         }
 
-        .paginacao a:hover {
-            background-color: #007bff;
-            color: #fff;
-        }
-
-        .paginacao .pagina-atual {
+        table th {
+            background-color: #f2f2f2;
+            color: #333;
             font-weight: bold;
-            color: #fff;
-            background-color: #007bff;
-            border-color: #007bff;
         }
 
-        .botao-voltar {
-            margin-bottom: 20px;
+        table tbody tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+
+        table tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .btn {
+            display: inline-block;
             padding: 10px 20px;
             background-color: #007bff;
             color: #fff;
@@ -127,40 +137,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             transition: background-color 0.3s ease;
         }
 
-        .botao-voltar:hover {
+        .btn:hover {
             background-color: #0056b3;
         }
 
-        .navegacao {
+        /* Modal CSS */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            position: relative;
             text-align: center;
-            margin-bottom: 20px;
-        }
-        .btn{
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 20px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+            /* Centraliza o texto no modal */
         }
 
-        .btn:hover{
-            background-color: #0056b3;
+        .modal-success-message {
+            color: #28a745;
+            /* Verde para a mensagem de sucesso */
+            font-size: 1.5rem;
+            /* Tamanho da fonte ajustado */
+            text-align: center;
+            /* Centralizar a mensagem */
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .modal-sucesso {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .modal-sucesso .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
-
-    <?php include 'includes/header.php'; ?>
-
     <h2>Gerenciar Estoque</h2>
-
-    <!-- Botão Voltar e Navegação de Paginação acima da tabela -->
-    <div class="navegacao">
-        <?php echo $paginacaoHTML; ?>
-    </div>
 
     <table>
         <thead>
@@ -175,33 +222,115 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($produtos as $produto): ?>
-                <tr>
+            <?php foreach ($produtos as $produto) : ?>
+                <tr data-id="<?php echo $produto['id']; ?>">
                     <td><?php echo htmlspecialchars($produto['nome']); ?></td>
                     <td><?php echo htmlspecialchars($produto['descricao']); ?></td>
                     <td><?php echo htmlspecialchars($produto['preco']); ?></td>
                     <td><?php echo htmlspecialchars($produto['quantidade']); ?></td>
-                    <td><?php echo htmlspecialchars($produto['estoque_minimo']); ?></td>
-                    <td><?php echo htmlspecialchars($produto['estoque_maximo']); ?></td>
+                    <td class="estoque-minimo"><?php echo htmlspecialchars($produto['estoque_minimo']); ?></td>
+                    <td class="estoque-maximo"><?php echo htmlspecialchars($produto['estoque_maximo']); ?></td>
                     <td>
-                        <form method="post" action="">
-                            <input type="hidden" name="produto_id" value="<?php echo $produto['id']; ?>">
-                            <input type="number" placeholder="estoque " name="quantidade" min="0" required>
-                            <button type="submit" class="btn" name="atualizar">Atualizar</button>
-                        </form>
-                        <?php if ($produto['quantidade'] < $produto['estoque_minimo']): ?>
-                            <p style="color: red;">Estoque abaixo do mínimo!</p>
-                        <?php endif; ?>
-                        <?php if ($produto['quantidade'] > $produto['estoque_maximo']): ?>
-                            <p style="color: orange;">Estoque acima do máximo!</p>
-                        <?php endif; ?>
+                        <button class="btn btn-warning" onclick="abrirModal(<?php echo htmlspecialchars(json_encode($produto)); ?>)">Atualizar</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
 
-    <?php include 'includes/footer.php'; ?>
+    <div id="modal-editar" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="fecharModal()">×</span>
+            <h2>Atualizar Estoque</h2>
+            <form id="form-editar-estoque">
+                <input type="hidden" id="produto-id" name="id">
+                <label for="estoque-minimo">Estoque Mínimo:</label>
+                <input type="number" id="estoque-minimo" name="estoque_minimo" required><br><br>
+
+                <label for="estoque-maximo">Estoque Máximo:</label>
+                <input type="number" id="estoque-maximo" name="estoque_maximo" required><br><br>
+
+                <button type="button" onclick="salvarEdicao()">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-sucesso" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="fecharModalSucesso()">×</span>
+            <h2 class="modal-success-message">Estoque atualizado com sucesso!</h2>
+        </div>
+    </div>
+
+
+    <script>
+        function abrirModal(produto) {
+            document.getElementById('produto-id').value = produto.id;
+            document.getElementById('estoque-minimo').value = produto.estoque_minimo;
+            document.getElementById('estoque-maximo').value = produto.estoque_maximo;
+            document.getElementById('modal-editar').style.display = 'flex';
+        }
+
+        function fecharModal() {
+            document.getElementById('modal-editar').style.display = 'none';
+        }
+
+        function mostrarModalSucesso() {
+            document.getElementById('modal-sucesso').style.display = 'flex';
+        }
+
+        function fecharModalSucesso() {
+            document.getElementById('modal-sucesso').style.display = 'none';
+        }
+
+        function salvarEdicao() {
+            var id = document.getElementById('produto-id').value;
+            var estoqueMinimo = document.getElementById('estoque-minimo').value;
+            var estoqueMaximo = document.getElementById('estoque-maximo').value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'pages/atualizar_estoque.php', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        console.log(xhr.responseText); // Adiciona um console.log para ver a resposta
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            if (response.status === 'success') {
+                                // Atualiza os valores na tabela HTML
+                                var row = document.querySelector('tr[data-id="' + id + '"]');
+                                row.querySelector('.estoque-minimo').textContent = estoqueMinimo;
+                                row.querySelector('.estoque-maximo').textContent = estoqueMaximo;
+                                fecharModal();
+                                mostrarMensagemSucesso(); // Adiciona a chamada da função para mostrar a mensagem de sucesso
+                            } else {
+                                alert('Erro ao salvar as alterações: ' + (response.message || 'Erro desconhecido.'));
+                            }
+                        } catch (error) {
+                            alert('Erro ao processar a resposta do servidor.');
+                        }
+                    } else {
+                        alert('Erro na solicitação: ' + xhr.status);
+                    }
+                }
+            };
+
+            var params = 'id=' + encodeURIComponent(id) +
+                '&estoque_minimo=' + encodeURIComponent(estoqueMinimo) +
+                '&estoque_maximo=' + encodeURIComponent(estoqueMaximo);
+            xhr.send(params);
+        }
+
+        function mostrarMensagemSucesso() {
+            var sucessoModal = document.getElementById('modal-sucesso');
+            sucessoModal.style.display = 'flex';
+            setTimeout(function() {
+                sucessoModal.style.display = 'none';
+            }, 3000); // Fecha o modal após 3 segundos
+        }
+    </script>
 
 </body>
 
