@@ -37,54 +37,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data_venda = $_POST['data_venda'];
 
     // Verificando se a data inserida está no ano atual
-    $data_venda_timestamp = strtotime($data_venda);
-    $ano_atual = date('Y');
-    $data_minima = strtotime("$ano_atual-01-01");
-    $data_maxima = strtotime("$ano_atual-12-31");
+ // Verificando se a data inserida está no mês atual
+$data_venda_timestamp = strtotime($data_venda);
+$ano_atual = date('Y');
+$mes_atual = date('m');
+$data_inicio_mes = strtotime("$ano_atual-$mes_atual-01");
+$data_fim_mes = strtotime(date("Y-m-t", $data_inicio_mes)); // Último dia do mês atual
 
-    if ($data_venda_timestamp < $data_minima || $data_venda_timestamp > $data_maxima) {
-        echo "<script>alert('Erro: A data da venda deve estar dentro do ano atual.');</script>";
-    } else {
-        try {
-            // Inserindo a venda no banco de dados
-            $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) 
-                    VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda, :usuario_id)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bindParam(':produto_id', $produto_id);
-            $stmt->bindParam(':cliente_id', $cliente_id);
-            $stmt->bindParam(':quantidade', $quantidade);
-            $stmt->bindParam(':preco_total', $preco_total);
-            $stmt->bindParam(':data_venda', $data_venda);
-            $stmt->bindParam(':usuario_id', $usuario_id);
+if ($data_venda_timestamp < $data_inicio_mes || $data_venda_timestamp > $data_fim_mes) {
+    echo "<script>alert('Erro: A data da venda deve estar dentro do mês atual.');</script>";
+} else {
+    try {
+        // Inserindo a venda no banco de dados
+        $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) 
+                VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda, :usuario_id)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':produto_id', $produto_id);
+        $stmt->bindParam(':cliente_id', $cliente_id);
+        $stmt->bindParam(':quantidade', $quantidade);
+        $stmt->bindParam(':preco_total', $preco_total);
+        $stmt->bindParam(':data_venda', $data_venda);
+        $stmt->bindParam(':usuario_id', $usuario_id);
 
-            if ($stmt->execute()) {
-                // Cria uma descrição detalhada das mudanças para o log
-                $mudancas = [
-                    "Produto ID: $produto_id",
-                    "Cliente ID: $cliente_id",
-                    "Quantidade: $quantidade",
-                    "Preço Total: R$ $preco_total",
-                    "Data da Venda: $data_venda",
-                ];
+        if ($stmt->execute()) {
+            // Registra a ação no log
+            $mudancas = [
+                "Produto ID: $produto_id",
+                "Cliente ID: $cliente_id",
+                "Quantidade: $quantidade",
+                "Preço Total: R$ $preco_total",
+                "Data da Venda: $data_venda",
+            ];
+            $descricaoMudancas = implode("; ", $mudancas);
+            $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda', $usuario_id)";
+            registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
 
-                // Converter as mudanças para uma string
-                $descricaoMudancas = implode("; ", $mudancas);
-
-                // Cria o comando SQL completo para o log
-                $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda', $usuario_id)";
-
-                // Registra a ação no log, incluindo a descrição das mudanças
-                registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
-
-                $showModal = true; // Mostrar modal ao cadastrar com sucesso
-
-            } else {
-                echo "Erro ao cadastrar venda.";
-            }
-        } catch (PDOException $e) {
-            echo "Erro ao cadastrar venda: " . $e->getMessage();
+            $showModal = true; // Mostrar modal ao cadastrar com sucesso
+        } else {
+            echo "Erro ao cadastrar venda.";
         }
+    } catch (PDOException $e) {
+        echo "Erro ao cadastrar venda: " . $e->getMessage();
     }
+}
 }
 
 $produtos = obterProdutos($conn);

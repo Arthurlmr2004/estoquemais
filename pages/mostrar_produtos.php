@@ -202,15 +202,39 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
         }
 
         function abrirModalEdicao(produto) {
-            // Preenche os campos do modal com os dados do produto
             document.getElementById('produto-id').value = produto.id;
             document.getElementById('edit-nome').value = produto.nome;
-            document.getElementById('edit-descricao').value = produto.descricao;
-            document.getElementById('edit-preco').value = produto.preco;
-            document.getElementById('edit-quantidade').value = produto.quantidade;
+            document.getElementById('edit-descricao').value = produto.descricao; // Adicione esta linha
+            document.getElementById('edit-preco').value = produto.preco; // Adicione esta linha
+            document.getElementById('edit-quantidade').value = produto.quantidade; // Adicione esta linha
 
-            // Mostra o modal
             document.getElementById('modal-editar-produto').style.display = 'flex';
+        }
+
+        function fecharModalEdicao() {
+            document.getElementById('modal-editar-produto').style.display = 'none';
+        }
+
+        function salvarProdutoModal() {
+            var form = document.getElementById('editar-produto-form');
+            var formData = new FormData(form);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "pages/atualizar_produto.php", true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert('Produto atualizado com sucesso!');
+                        location.reload(); // Recarrega a página após salvar
+                    } else {
+                        alert('Erro: ' + response.error);
+                    }
+                }
+            };
+
+            xhr.send(formData);
         }
 
         function fecharModalEdicao() {
@@ -482,7 +506,7 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
                         <?php endif; ?>
 
                         <!-- Botão de Editar CORRIGIDO: -->
-                        <button class="btn btn-primary btn-sm btn-warning" onclick="editarProduto(<?php echo $produto['id']; ?>)"><i class="fas fa-edit"></i> Editar</button>
+                        <button class="btn btn-warning btn-sm" onclick="abrirModalEdicao(<?php echo htmlspecialchars(json_encode($produto)); ?>)"><i class="fas fa-edit"></i> Editar</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -491,6 +515,28 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
 
     <div class="paginacao">
         <?php echo $paginacaoHTML; ?>
+    </div>
+
+    <div id="modal-editar-produto" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="fecharModalEdicao()">×</span>
+            <h2>Editar Produto</h2>
+            <form id="editar-produto-form"> <input type="hidden" id="produto-id" name="id">
+                <label for="edit-nome">Nome:</label>
+                <input type="text" id="edit-nome" name="nome" required><br><br>
+
+                <label for="edit-descricao">Descrição:</label>
+                <textarea id="edit-descricao" name="descricao"></textarea><br><br>
+
+                <label for="edit-preco">Preço:</label>
+                <input type="text" id="edit-preco" name="preco" required><br><br>
+
+                <label for="edit-quantidade">Quantidade:</label>
+                <input type="number" id="edit-quantidade" name="quantidade" required><br><br>
+
+                <button type="button" onclick="salvarProdutoModal()">Salvar</button>
+            </form>
+        </div>
     </div>
 
 </body>
