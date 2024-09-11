@@ -1,5 +1,5 @@
 <?php
-include 'includes/conexao.php'; // Certifique-se de que o caminho para o arquivo de conexão está correto
+include('includes/conexao.php');
 
 // Verifica se o usuário está autenticado
 if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
@@ -7,46 +7,85 @@ if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION
     exit();
 }
 
-// Definir o número de itens por página
-$clientesPorPagina = 5;
+// Função para paginação (modificada para exibir 3 links por vez)
+function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
+{
+    $totalPaginas = ceil($totalRegistros / $itensPorPagina);
+    $paginacaoHTML = '<div class="paginacao">';
 
-// Determinar a página atual
-$paginaAtual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-$inicio = ($paginaAtual - 1) * $clientesPorPagina;
+    // Botão "Anterior"
+    if ($paginaAtual > 1) {
+        $paginaAnterior = $paginaAtual - 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'>Anterior</a>";
+    }
 
-// Obtém a situação dos clientes (filtro)
+    // Calcula o intervalo de páginas a serem exibidas
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
+    // Links para as páginas
+    for ($i = $inicio; $i <= $fim; $i++) {
+        if ($i == $paginaAtual) {
+            $paginacaoHTML .= "<span class='pagina-atual'>$i</span>";
+        } else {
+            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&itensPorPagina=$itensPorPagina'>$i</a>";
+        }
+    }
+
+    // Botão "Próximo"
+    if ($paginaAtual < $totalPaginas) {
+        $paginaProxima = $paginaAtual + 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>";
+    }
+
+    $paginacaoHTML .= '</div>';
+    return $paginacaoHTML;
+}
+
+// Parâmetros da paginação
+$itensPorPagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5; // Define 5 como padrão
+$paginaAtual = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$offset = ($paginaAtual - 1) * $itensPorPagina;
+
+// Filtro de situação
 $situacaoFiltro = isset($_GET['situacao']) ? $_GET['situacao'] : 'todos';
 
-// Consulta SQL para contar o total de clientes
-$sqlTotal = "SELECT COUNT(*) as total FROM clientes";
+// Consulta SQL para contar o total de clientes (considerando o filtro)
+$sqlContagem = "SELECT COUNT(*) as total FROM clientes";
 if ($situacaoFiltro !== 'todos') {
-    $sqlTotal .= " WHERE situacao = :situacao";
+    $sqlContagem .= " WHERE situacao = :situacao";
 }
-$stmtTotal = $conn->prepare($sqlTotal);
+$stmtContagem = $conn->prepare($sqlContagem);
 if ($situacaoFiltro !== 'todos') {
-    $stmtTotal->bindParam(':situacao', $situacaoFiltro);
+    $stmtContagem->bindParam(':situacao', $situacaoFiltro);
 }
-$stmtTotal->execute();
-$totalClientes = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
+$stmtContagem->execute();
+$totalClientes = $stmtContagem->fetch(PDO::FETCH_ASSOC)['total'];
 
 // Calcular o número total de páginas
-$totalPaginas = ceil($totalClientes / $clientesPorPagina);
+$totalPaginas = ceil($totalClientes / $itensPorPagina);
 
 // Consulta SQL para buscar clientes com paginação
 $sql = "SELECT * FROM clientes";
 if ($situacaoFiltro !== 'todos') {
     $sql .= " WHERE situacao = :situacao";
 }
-$sql .= " LIMIT :inicio, :clientesPorPagina";
+$sql .= " LIMIT :limite OFFSET :offset";
 
 $stmt = $conn->prepare($sql);
 if ($situacaoFiltro !== 'todos') {
     $stmt->bindParam(':situacao', $situacaoFiltro);
 }
-$stmt->bindParam(':inicio', $inicio, PDO::PARAM_INT);
-$stmt->bindParam(':clientesPorPagina', $clientesPorPagina, PDO::PARAM_INT);
+$stmt->bindParam(':limite', $itensPorPagina, PDO::PARAM_INT);
+$stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Gerar a URL base para a paginação (incluindo o filtro e a quantidade de itens)
+$paginaBaseUrl = "painel.php?page=mostrar_clientes&situacao=$situacaoFiltro&itensPorPagina=$itensPorPagina";
+
+// Gerar o HTML da paginação
+$paginacaoHTML = paginarResultados($totalClientes, $itensPorPagina, $paginaAtual, $paginaBaseUrl);
 ?>
 
 <!DOCTYPE html>
@@ -145,8 +184,8 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
     </script>
     <style>
-         /* Estilos para inputs dentro da tabela */
-         table input[type="text"],
+        /* Estilos para inputs dentro da tabela */
+        table input[type="text"],
         table input[type="email"],
         table input[type="number"] {
             width: 100%;
@@ -160,6 +199,41 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         a {
             text-decoration: none;
+        }
+
+        .paginacao {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .paginacao a,
+        .paginacao span {
+            /* Use strong para a página atual */
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            background-color: white;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .paginacao a {
+            color: #000;
+        }
+
+        .paginacao a:hover {
+            background-color: #6f6a6a;
+            color: #fff;
+        }
+
+        .paginacao .pagina-atual {
+            /* Estilo para a página atual */
+            background-color: #6f6a6a;
+            /* Cor de fundo azul */
+            color: #fff;
         }
 
         table input:focus {
@@ -313,7 +387,11 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 opacity: 1;
                 transform: translateY(0);
             }
-        }   
+        }
+
+        .itensPagina {
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -327,6 +405,14 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
             <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
             <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
+        </select>
+
+
+        <label for="itensPorPagina" class="itensPagina"> Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">
+            <option value="5" <?php echo ($itensPorPagina == 5) ? 'selected' : ''; ?>>5</option>
+            <option value="10" <?php echo ($itensPorPagina == 10) ? 'selected' : ''; ?>>10</option>
+            <!-- Adicione mais opções conforme necessário -->
         </select>
     </div>
 
@@ -354,12 +440,18 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo $cliente['endereco']; ?></td>
                     <td>
                         <?php if ($cliente['situacao'] === 'ativo'): ?>
-                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'ativo'); return false;" class="btn btn-danger">Desativar</a>
+                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'ativo'); return false;" class="btn btn-danger">
+                                <i class="fas fa-ban"></i> Desativar
+                            </a>
                         <?php else: ?>
-                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'inativo'); return false;" class="btn btn-success">Ativar</a>
+                            <a href="#" onclick="alterarStatusCliente(<?php echo $cliente['id']; ?>, 'inativo'); return false;" class="btn btn-success">
+                                <i class="fas fa-check"></i> Ativar
+                            </a>
                         <?php endif; ?>
                         <!-- Botão de editar -->
-                        <a href="#" onclick="abrirModal(<?php echo htmlspecialchars(json_encode($cliente)); ?>); return false;" class="btn btn-warning">Editar</a>
+                        <a href="#" onclick="abrirModal(<?php echo htmlspecialchars(json_encode($cliente)); ?>); return false;" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -368,46 +460,8 @@ $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Controles de Paginação -->
     <div class="paginacao">
         <?php if ($totalPaginas > 1): ?>
-            <?php
-            // Definir o número máximo de links de página a serem exibidos
-            $maxLinks = 5;
-            $startPage = max(1, $paginaAtual - intval($maxLinks / 2));
-            $endPage = min($totalPaginas, $startPage + $maxLinks - 1);
+            <?php echo $paginacaoHTML; ?>
 
-            // Ajustar o startPage se não houver páginas suficientes no final
-            if ($endPage - $startPage < $maxLinks - 1) {
-                $startPage = max(1, $endPage - $maxLinks + 1);
-            }
-            ?>
-
-            <!-- Link para a primeira página -->
-            <?php if ($paginaAtual > 1): ?>
-                <a href="?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&pagina=1">&laquo; Primeira</a>
-            <?php endif; ?>
-
-            <!-- Link para a página anterior -->
-            <?php if ($paginaAtual > 1): ?>
-                <a href="?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&pagina=<?php echo $paginaAtual - 1; ?>">&lt; Anterior</a>
-            <?php endif; ?>
-
-            <!-- Links das páginas -->
-            <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
-                <?php if ($i == $paginaAtual): ?>
-                    <strong><?php echo $i; ?></strong>
-                <?php else: ?>
-                    <a href="?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&pagina=<?php echo $i; ?>"><?php echo $i; ?></a>
-                <?php endif; ?>
-            <?php endfor; ?>
-
-            <!-- Link para a próxima página -->
-            <?php if ($paginaAtual < $totalPaginas): ?>
-                <a href="?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&pagina=<?php echo $paginaAtual + 1; ?>">Próxima &gt;</a>
-            <?php endif; ?>
-
-            <!-- Link para a última página -->
-            <?php if ($paginaAtual < $totalPaginas): ?>
-                <a href="?page=mostrar_clientes&situacao=<?php echo $situacaoFiltro; ?>&pagina=<?php echo $totalPaginas; ?>">Última &raquo;</a>
-            <?php endif; ?>
         <?php endif; ?>
         <!-- Modal para edição de cliente -->
         <div id="modal-editar" class="modal">

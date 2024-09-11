@@ -3,7 +3,7 @@ include 'includes/conexao.php';
 include 'funcoes_log.php';
 
 // Verifica se o usuário está autenticado como admin ou vendedor
-if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
@@ -11,7 +11,8 @@ if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION
 $usuarioLogado = $_SESSION['usuario'];
 
 // Inicialmente, não exibe o modal
-$showModal = false;
+$showModal = false; // Variável para o controle do modal
+$mensagemErro = ""; // Variável para a mensagem de erro
 
 // Buscar fornecedores
 $sqlFornecedores = "SELECT id, nome FROM fornecedores";
@@ -45,47 +46,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     try {
-        $sql = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
-                VALUES (:nome, :descricao, :preco, :quantidade, :estoque_minimo, :estoque_maximo, :fornecedor_id, :imagem)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':nome', $nome);
-        $stmt->bindParam(':descricao', $descricao);
-        $stmt->bindParam(':preco', $preco);
-        $stmt->bindParam(':quantidade', $quantidade);
-        $stmt->bindParam(':estoque_minimo', $estoque_minimo);
-        $stmt->bindParam(':estoque_maximo', $estoque_maximo);
-        $stmt->bindParam(':fornecedor_id', $fornecedor_id);
-        $stmt->bindParam(':imagem', $imagem);
+        // Verifica se o produto já existe, independente de maiúsculas e minúsculas
+        $sqlVerificaProduto = "SELECT id FROM produtos WHERE LOWER(nome) = LOWER(:nome) AND fornecedor_id = :fornecedor_id";
+        $stmtVerificaProduto = $conn->prepare($sqlVerificaProduto);
+        $stmtVerificaProduto->bindParam(':nome', $nome);
+        $stmtVerificaProduto->bindParam(':fornecedor_id', $fornecedor_id);
+        $stmtVerificaProduto->execute();
+        $produtoExistente = $stmtVerificaProduto->fetch(PDO::FETCH_ASSOC);
 
-        if ($stmt->execute()) {
-            // Crie uma descrição detalhada das mudanças para o log
-            $mudancas = [
-                "Nome: $nome",
-                "Descrição: $descricao",
-                "Preço: R$ $preco",
-                "Quantidade: $quantidade",
-                "Estoque Mínimo: $estoque_minimo",
-                "Estoque Máximo: $estoque_maximo",
-                "Fornecedor ID: $fornecedor_id",
-                "Imagem: " . ($imagem ? $imagem : 'Sem imagem')
-            ];
-
-            // Converter as mudanças para uma string
-            $descricaoMudancas = implode("; ", $mudancas);
-
-            // Cria o comando SQL completo para o log
-            $comandoSqlCompleto = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
-                                   VALUES ('" . addslashes($nome) . "', '" . addslashes($descricao) . "', $preco, $quantidade, $estoque_minimo, $estoque_maximo, $fornecedor_id, '" . addslashes($imagem) . "')";
-
-            // Registra a ação no log, incluindo a descrição das mudanças
-            registrarLog($conn, $usuarioLogado, 'Inserção de Produto', 'produtos', $comandoSqlCompleto, '', $descricaoMudancas);
-
-            $showModal = true;
+        if ($produtoExistente) {
+            $mensagemErro = "Erro: Produto já cadastrado!";
         } else {
-            echo "Erro ao cadastrar o produto.";
+            // Insere o novo produto
+            $sql = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
+                    VALUES (:nome, :descricao, :preco, :quantidade, :estoque_minimo, :estoque_maximo, :fornecedor_id, :imagem)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':nome', $nome);
+            $stmt->bindParam(':descricao', $descricao);
+            $stmt->bindParam(':preco', $preco);
+            $stmt->bindParam(':quantidade', $quantidade);
+            $stmt->bindParam(':estoque_minimo', $estoque_minimo);
+            $stmt->bindParam(':estoque_maximo', $estoque_maximo);
+            $stmt->bindParam(':fornecedor_id', $fornecedor_id);
+            $stmt->bindParam(':imagem', $imagem);
+
+            if ($stmt->execute()) {
+                $showModal = true;
+                // Crie uma descrição detalhada das mudanças para o log
+                $mudancas = [
+                    "Nome: $nome",
+                    "Descrição: $descricao",
+                    "Preço: R$ $preco",
+                    "Quantidade: $quantidade",
+                    "Estoque Mínimo: $estoque_minimo",
+                    "Estoque Máximo: $estoque_maximo",
+                    "Fornecedor ID: $fornecedor_id",
+                    "Imagem: " . ($imagem ? $imagem : 'Sem imagem')
+                ];
+
+                // Converter as mudanças para uma string
+                $descricaoMudancas = implode("; ", $mudancas);
+
+                // Cria o comando SQL completo para o log
+                $comandoSqlCompleto = "INSERT INTO produtos (nome, descricao, preco, quantidade, estoque_minimo, estoque_maximo, fornecedor_id, imagem) 
+                                       VALUES ('" . addslashes($nome) . "', '" . addslashes($descricao) . "', $preco, $quantidade, $estoque_minimo, $estoque_maximo, $fornecedor_id, '" . addslashes($imagem) . "')";
+
+                // Registra a ação no log, incluindo a descrição das mudanças
+                registrarLog($conn, $usuarioLogado, 'Inserção de Produto', 'produtos', $comandoSqlCompleto, '', $descricaoMudancas);
+            } else {
+                $mensagemErro = "Erro ao cadastrar o produto.";
+            }
         }
     } catch (PDOException $e) {
-        echo "Erro ao cadastrar o produto: " . $e->getMessage();
+        $mensagemErro = "Erro ao cadastrar o produto: " . $e->getMessage();
     }
 }
 ?>
@@ -99,7 +112,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <style>
         /* Estilos para a janela modal */
         .modal {
-            display: <?php echo $showModal ? 'block' : 'none'; ?>;
+            display: none;
+            /* Inicialmente oculta */
             position: fixed;
             z-index: 1;
             left: 0;
@@ -110,6 +124,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background-color: rgba(0, 0, 0, 0.4);
             align-items: center;
             justify-content: center;
+            display: flex;
+            /* Centraliza o modal verticalmente e horizontalmente */
         }
 
         .modal-content {
@@ -120,6 +136,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             max-width: 500px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             border-radius: 8px;
+            margin: auto;
         }
 
         .close {
@@ -181,15 +198,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             object-fit: contain;
             display: block;
         }
-        h2{
-           
+
+        h2 {
             color: black;
         }
     </style>
 </head>
 
 <body>
-
 
     <h2>Cadastrar Produto</h2>
 
@@ -207,61 +223,56 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <input type="number" id="quantidade" name="quantidade" placeholder="Quantidade em estoque" required>
 
         <label for="estoque_minimo">Estoque Mínimo:</label>
-        <input type="number" id="estoque_minimo" name="estoque_minimo" placeholder="Quantidade mínima em estoque" required>
+        <input type="number" id="estoque_minimo" name="estoque_minimo" placeholder="Estoque mínimo" required>
 
         <label for="estoque_maximo">Estoque Máximo:</label>
-        <input type="number" id="estoque_maximo" name="estoque_maximo" placeholder="Quantidade máxima em estoque" required>
+        <input type="number" id="estoque_maximo" name="estoque_maximo" placeholder="Estoque máximo" required>
 
         <label for="fornecedor_id">Fornecedor:</label>
         <select id="fornecedor_id" name="fornecedor_id" required>
             <option value="">Selecione um fornecedor</option>
-            <?php foreach ($fornecedores as $fornecedor): ?>
-                <option value="<?php echo htmlspecialchars($fornecedor['id']); ?>"><?php echo htmlspecialchars($fornecedor['nome']); ?></option>
-            <?php endforeach; ?>
+            <?php foreach ($fornecedores as $fornecedor) { ?>
+                <option value="<?php echo $fornecedor['id']; ?>"><?php echo $fornecedor['nome']; ?></option>
+            <?php } ?>
         </select>
 
-        <label for="imagem" class="custom-file-upload">Imagem do Produto:</label>
-        <input type="file" id="imagem" name="imagem" accept="image/*" onchange="previewImage(event)">
-        <img id="imagemPreview" src="#" alt="Preview da Imagem" style="display: none;" />
+        <label for="imagem" class="custom-file-upload">
+            Selecionar imagem
+        </label>
+        <input type="file" id="imagem" name="imagem" accept="image/*" onchange="previewImagem(event)">
+        <img id="imagemPreview" alt="Pré-visualização da Imagem" style="display:none;">
 
-        <input type="submit" class="btn" value="Cadastrar">
+        <button class="btn" type="submit">Cadastrar</button>
     </form>
 
-    <div id="successModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <p>Produto cadastrado com sucesso!</p>
+    <!-- Modal para exibir a mensagem -->
+    <?php if ($showModal) : ?>
+        <div id="myModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p>Produto cadastrado com sucesso!</p>
+            </div>
         </div>
-    </div>
+    <?php elseif ($mensagemErro) : ?>
+        <div id="myModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p><?php echo $mensagemErro; ?></p>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <script>
-        // Script para exibir a janela modal
-        function closeModal() {
-            document.getElementById('successModal').style.display = 'none';
-        }
-
-        // Mostrar a janela modal se a variável PHP $showModal for true
-        document.addEventListener('DOMContentLoaded', function() {
-            <?php if ($showModal): ?>
-                document.getElementById('successModal').style.display = 'flex';
-            <?php endif; ?>
+        // Função para fechar o modal
+        document.querySelector('.close').addEventListener('click', function() {
+            document.getElementById('myModal').style.display = 'none';
         });
 
-        // Função para exibir a imagem pré-visualizada
-        function previewImage(event) {
-            var reader = new FileReader();
-            var imagePreview = document.getElementById('imagemPreview');
-
-            reader.onload = function() {
-                imagePreview.src = reader.result;
-                imagePreview.style.display = 'block'; // Exibe a imagem
-            }
-
-            if (event.target.files[0]) {
-                reader.readAsDataURL(event.target.files[0]);
-            } else {
-                imagePreview.style.display = 'none'; // Oculta a imagem se nenhum arquivo for selecionado
-            }
+        // Função para mostrar a pré-visualização da imagem
+        function previewImagem(event) {
+            const imagemPreview = document.getElementById('imagemPreview');
+            imagemPreview.src = URL.createObjectURL(event.target.files[0]);
+            imagemPreview.style.display = "block";
         }
     </script>
 

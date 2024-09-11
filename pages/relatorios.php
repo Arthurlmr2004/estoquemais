@@ -6,7 +6,7 @@ if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION
     exit();
 }
 
-// Função para paginação
+// Função para paginação (modificada para exibir 3 links por vez)
 function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
 {
     $totalPaginas = ceil($totalRegistros / $itensPorPagina);
@@ -15,11 +15,15 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>« Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'> Anterior</a>";
     }
 
+    // Calcula o intervalo de páginas a serem exibidas
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
     // Links para as páginas
-    for ($i = 1; $i <= $totalPaginas; $i++) {
+    for ($i = $inicio; $i <= $fim; $i++) {
         if ($i == $paginaAtual) {
             $paginacaoHTML .= "<span class='pagina-atual'>$i</span>";
         } else {
@@ -30,7 +34,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo »</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo </a>";
     }
 
     $paginacaoHTML .= '</div>';
@@ -45,27 +49,24 @@ $offset = ($paginaAtual - 1) * $itensPorPagina;
 // Determinar qual aba exibir com base na URL
 $aba = isset($_GET['aba']) ? $_GET['aba'] : 'estoque';
 
-// Consulta SQL base para gerar os relatórios
+// Consulta SQL base para gerar os relatórios (modificada - removida a aba 'produtos')
 $baseQuery = [
     'estoque' => "SELECT p.nome AS nome, p.descricao, p.quantidade, p.preco AS preco, f.nome AS fornecedor
                   FROM produtos p
                   JOIN fornecedores f ON p.fornecedor_id = f.id
                   LIMIT :itensPorPagina OFFSET :offset",
-    'saidas' => "SELECT s.id AS id, s.data_saida, p.nome AS nome, s.quantidade, p.preco AS preco
-                 FROM saidas s
-                 JOIN produtos p ON s.produto_id = p.id
+    'vendas' => "SELECT v.id AS id, v.data_venda, c.nome AS cliente_nome, p.nome AS produto_nome, v.quantidade, v.preco_total, u.usuario AS vendedor
+                 FROM vendas v
+                 JOIN produtos p ON v.produto_id = p.id
+                 JOIN clientes c ON v.cliente_id = c.id
+                 JOIN usuarios u ON v.usuario_id = u.id
                  LIMIT :itensPorPagina OFFSET :offset",
-    'entradas' => "SELECT e.id AS id, e.data_entrada, p.nome AS nome, e.quantidade, p.preco AS preco
-                   FROM entradas e
-                   JOIN produtos p ON e.produto_id = p.id
-                   LIMIT :itensPorPagina OFFSET :offset"
 ];
 
-// Contagem total de registros por aba
+// Contagem total de registros por aba (modificada - removida a chave 'produtos')
 $totalQuery = [
     'estoque' => "SELECT COUNT(*) FROM produtos",
-    'saidas' => "SELECT COUNT(*) FROM saidas",
-    'entradas' => "SELECT COUNT(*) FROM entradas"
+    'vendas' => "SELECT COUNT(*) FROM vendas",
 ];
 
 // Preparar e executar a consulta apropriada com base na aba ativa
@@ -96,6 +97,7 @@ try {
     <meta charset="UTF-8">
     <title>Relatórios</title>
     <link rel="stylesheet" href="../estilos/estilos.css">
+
     <style>
         h2 {
             text-align: center;
@@ -111,37 +113,35 @@ try {
 
         .paginacao a,
         .paginacao span {
+            /* Use strong para a página atual */
             display: inline-block;
             padding: 10px 15px;
             margin: 0 5px;
             border-radius: 5px;
             text-decoration: none;
-            color: #007bff;
             background-color: white;
             border: 1px solid #ddd;
             transition: background-color 0.3s ease, color 0.3s ease;
             font-weight: bold;
         }
 
+        .paginacao a {
+            color: #000;
+        }
+
         .paginacao a:hover {
-            background-color: #007bff;
+            background-color: #6f6a6a;
             color: #fff;
         }
 
         .paginacao .pagina-atual {
-            font-weight: bold;
+            /* Estilo para a página atual */
+            background-color: #6f6a6a;
+            /* Cor de fundo azul */
             color: #fff;
-            background-color: #007bff;
-            border-color: #007bff;
         }
 
         /* Estilos para posicionar a paginação e os botões dentro da tabela */
-        #tabelaRelatorio tfoot a:hover {
-            background-color: transparent !important;
-            /* Remove a cor de fundo no hover */
-            color: #007bff !important;
-            /* Mantém a cor do texto no hover */
-        }
 
         .nav-tabs {
             display: flex;
@@ -171,16 +171,16 @@ try {
             padding: 10px 20px;
             margin: 0 5px;
             text-decoration: none;
-            color: #007bff;
-            background-color: white;
+            color: white;
+            background-color: #2c3e50;
             border: 1px solid #ddd;
             border-radius: 5px;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        .nav-tabs a.active,
+        nav-tabs a.active,
         .nav-tabs a:hover {
-            background-color: #007bff;
+            background-color: #6f6a6a;
             color: #fff;
         }
 
@@ -214,12 +214,15 @@ try {
             padding: 12px;
             border: 1px solid #ddd;
             text-align: left;
+            border: none;
         }
 
         table th {
             background-color: #f2f2f2;
-            color: #333;
+            color: white;
             font-weight: bold;
+            background-color: #2c3e50;
+            ;
         }
 
         /* Estilos para linhas pares e ímpares */
@@ -285,7 +288,7 @@ try {
 </head>
 
 <body>
- 
+
     <div class="itens-por-pagina">
         <label for="itensPorPagina">Itens por Página:</label>
         <select id="itensPorPagina" onchange="window.location.href='?page=relatorios&aba=<?php echo $aba; ?>&itensPorPagina=' + this.value;">
@@ -296,18 +299,12 @@ try {
     <div class="tab-content">
         <?php if ($aba === 'estoque'): ?>
             <h3>Relatório de Estoque</h3>
-
+            <ul class="nav-tabs">
+                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
+                <li <?php if ($aba === 'vendas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=vendas&itensPorPagina=<?php echo $itensPorPagina; ?>">Vendas</a></li>
+            </ul>
             <table id="tabelaRelatorio">
                 <thead>
-                    <tr>
-                        <th colspan="5">
-                            <ul class="nav-tabs">
-                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
-                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
-                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
-                            </ul>
-                        </th>
-                    </tr>
                     <tr>
                         <th>Nome do Produto</th>
                         <th>Descrição</th>
@@ -335,81 +332,40 @@ try {
                     </tr>
                 </tfoot>
             </table>
-        <?php elseif ($aba === 'saidas'): ?>
-            <h3>Relatório de Saídas</h3>
+        <?php elseif ($aba === 'vendas'): ?>
+            <h3>Relatório de Vendas</h3>
+            <ul class="nav-tabs">
+                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
+                <li <?php if ($aba === 'vendas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=vendas&itensPorPagina=<?php echo $itensPorPagina; ?>">Vendas</a></li>
+            </ul>
             <table id="tabelaRelatorio">
                 <thead>
                     <tr>
-                        <th colspan="5">
-                            <ul class="nav-tabs">
-                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
-                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
-                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
-                            </ul>
-                        </th>
-                    </tr>
-                    <tr>
                         <th>ID</th>
-                        <th>Data de Saída</th>
+                        <th>Data da Venda</th>
+                        <th>Cliente</th>
                         <th>Produto</th>
                         <th>Quantidade</th>
-                        <th>Preço</th>
+                        <th>Preço Total</th>
+                        <th>Vendedor</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($resultados as $row): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($row['id']); ?></td>
-                            <td><?php echo htmlspecialchars($row['data_saida']); ?></td>
-                            <td><?php echo htmlspecialchars($row['nome']); ?></td>
+                            <td><?php echo htmlspecialchars($row['data_venda']); ?></td>
+                            <td><?php echo htmlspecialchars($row['cliente_nome']); ?></td>
+                            <td><?php echo htmlspecialchars($row['produto_nome']); ?></td>
                             <td><?php echo htmlspecialchars($row['quantidade']); ?></td>
-                            <td><?php echo htmlspecialchars($row['preco']); ?></td>
+                            <td><?php echo htmlspecialchars($row['preco_total']); ?></td>
+                            <td><?php echo htmlspecialchars($row['vendedor']); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5">
-                            <?php echo $paginacaoHTML; ?>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        <?php elseif ($aba === 'entradas'): ?>
-            <h3>Relatório de Entradas</h3>
-            <table id="tabelaRelatorio">
-                <thead>
-                    <tr>
-                        <th colspan="5">
-                            <ul class="nav-tabs">
-                                <li <?php if ($aba === 'estoque') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=estoque&itensPorPagina=<?php echo $itensPorPagina; ?>">Estoque</a></li>
-                                <li <?php if ($aba === 'saidas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=saidas&itensPorPagina=<?php echo $itensPorPagina; ?>">Saídas</a></li>
-                                <li <?php if ($aba === 'entradas') echo 'class="active"'; ?>><a href="painel.php?page=relatorios&aba=entradas&itensPorPagina=<?php echo $itensPorPagina; ?>">Entradas</a></li>
-                            </ul>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>ID</th>
-                        <th>Data de Entrada</th>
-                        <th>Produto</th>
-                        <th>Quantidade</th>
-                        <th>Preço</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($resultados as $row): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($row['id']); ?></td>
-                            <td><?php echo htmlspecialchars($row['data_entrada']); ?></td>
-                            <td><?php echo htmlspecialchars($row['nome']); ?></td>
-                            <td><?php echo htmlspecialchars($row['quantidade']); ?></td>
-                            <td><?php echo htmlspecialchars($row['preco']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="5">
+                        <td colspan="6">
                             <?php echo $paginacaoHTML; ?>
                         </td>
                     </tr>
@@ -418,7 +374,6 @@ try {
         <?php endif; ?>
     </div>
 
-    <a href="painel.php"><button class="botao-voltar">Voltar</button></a>
 </body>
 
 </html>

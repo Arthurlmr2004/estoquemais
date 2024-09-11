@@ -5,7 +5,7 @@ include('funcoes_log.php'); // Inclua o arquivo com a função registrarLog()
 session_start(); // Inicie a sessão
 
 // Verifica se o usuário está autenticado e tem permissão
-if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
@@ -55,4 +55,3 @@ if ($id > 0) {
         echo "Erro ao atualizar o status do fornecedor.";
     }
 }
-?>

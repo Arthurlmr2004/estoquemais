@@ -81,11 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode(['error' => 'Erro ao atualizar o produto.']);
         }
-
     } catch (PDOException $e) {
         echo json_encode(['error' => 'Erro na consulta: ' . $e->getMessage()]);
     }
 } else {
     echo json_encode(['error' => 'Método de requisição inválido.']);
 }
-?>

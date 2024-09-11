@@ -1,7 +1,7 @@
 <?php
 include 'includes/conexao.php'; // Conexão com o banco
 
-if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
@@ -133,8 +133,8 @@ if (!empty($compras)) {
         }
 
         h2 {
-           background-color: white;
-           
+            background-color: white;
+
         }
 
         form {

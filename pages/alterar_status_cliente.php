@@ -22,7 +22,7 @@ if ($id > 0) {
     $sqlSelect = "SELECT * FROM clientes WHERE id = ?";
     $stmtSelect = $conn->prepare($sqlSelect);
     $stmtSelect->execute([$id]);
-    $clienteAntigo = $stmtSelect->fetch(PDO::FETCH_ASSOC); 
+    $clienteAntigo = $stmtSelect->fetch(PDO::FETCH_ASSOC);
 
     $sql = "UPDATE clientes SET situacao = ? WHERE id = ?";
     $stmt = $conn->prepare($sql);
@@ -31,12 +31,12 @@ if ($id > 0) {
 
     if ($stmt->execute([$situacao, $id])) {
         // Consulta para obter os dados atualizados do cliente
-        $sqlSelect = "SELECT * FROM clientes WHERE id = ?"; 
+        $sqlSelect = "SELECT * FROM clientes WHERE id = ?";
         $stmtSelect = $conn->prepare($sqlSelect);
         $stmtSelect->execute([$id]);
-        $clienteNovo = $stmtSelect->fetch(PDO::FETCH_ASSOC); 
+        $clienteNovo = $stmtSelect->fetch(PDO::FETCH_ASSOC);
 
-        $dadosNovos = json_encode($clienteNovo); 
+        $dadosNovos = json_encode($clienteNovo);
 
         // Comparar os dados e registrar as mudanças
         $mudancas = [];

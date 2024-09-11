@@ -1,263 +1,293 @@
 <?php
 include 'includes/conexao.php';
+include 'funcoes_log.php';
 
-if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) { 
+// Função para obter produtos e clientes
+function obterProdutos($conn)
+{
+    $stmt = $conn->query("SELECT id, nome, preco FROM produtos WHERE situacao = 'ativo'");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function obterClientes($conn)
+{
+    $stmt = $conn->query("SELECT id, nome FROM clientes WHERE situacao = 'ativo'");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Verifica se o usuário está autenticado
+if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
 
-$mensagemErro = "";
-$compras = [];
-$cpf = ""; 
+// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
+$usuarioLogado = $_SESSION['usuario'];
+$usuario_id = $_SESSION['usuario_id'];
 
-// Função para paginação (mantive a mesma lógica, apenas estilizei o HTML)
-function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '', $cpf = '') {
-    $totalPaginas = ceil($totalRegistros / $itensPorPagina);
-    $paginacaoHTML = '<div class="pagination">';
+// Variável para controlar exibição do modal
+$showModal = false;
 
-    if ($paginaAtual > 1) {
-        $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&cpf=$cpf' class='page-link'>«</a>";
-    }
+// Lógica de submissão do formulário
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $produto_id = $_POST['produto_id'];
+    $cliente_id = $_POST['cliente_id'];
+    $quantidade = $_POST['quantidade'];
+    $preco_total = $_POST['preco_total'];
+    $data_venda = $_POST['data_venda'];
 
-    $limite = 2; 
-    $inicio = max(1, $paginaAtual - $limite);
-    $fim = min($totalPaginas, $paginaAtual + $limite);
+    // Verificando se a data inserida está no ano atual
+    $data_venda_timestamp = strtotime($data_venda);
+    $ano_atual = date('Y');
+    $data_minima = strtotime("$ano_atual-01-01");
+    $data_maxima = strtotime("$ano_atual-12-31");
 
-    for ($i = $inicio; $i <= $fim; $i++) {
-        $activeClass = ($i == $paginaAtual) ? 'active' : '';
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&cpf=$cpf' class='page-link {$activeClass}'>$i</a>";
-    }
-
-    if ($paginaAtual < $totalPaginas) {
-        $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&cpf=$cpf' class='page-link'>»</a>";
-    }
-
-    $paginacaoHTML .= '</div>';
-    return $paginacaoHTML;
-}
-
-// Parâmetros de paginação
-$itensPorPagina = 3; 
-$paginaAtual = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-$offset = ($paginaAtual - 1) * $itensPorPagina;
-
-// Verifica se o CPF foi enviado 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cpf'])) {
-    $cpf = $_POST['cpf'];
-} elseif (isset($_GET['cpf'])) {
-    $cpf = $_GET['cpf'];
-}
-
-// ... (lógica para buscar as compras no banco de dados - sem alterações) ... 
-
-if (!empty($cpf)) {
-    // Busca o ID do cliente com base no CPF
-    $sqlCliente = "SELECT id FROM clientes WHERE cpf = :cpf";
-    $stmtCliente = $conn->prepare($sqlCliente);
-    $stmtCliente->bindParam(':cpf', $cpf);
-    $stmtCliente->execute();
-    $cliente = $stmtCliente->fetch(PDO::FETCH_ASSOC);
-
-    // Verifica se o cliente existe
-    if ($cliente) {
-        $clienteId = $cliente['id'];
-
-        // Contagem total de compras para paginação
-        $sqlTotal = "SELECT COUNT(*) FROM vendas WHERE cliente_id = :clienteId";
-        $stmtTotal = $conn->prepare($sqlTotal);
-        $stmtTotal->bindParam(':clienteId', $clienteId);
-        $stmtTotal->execute();
-        $totalCompras = $stmtTotal->fetchColumn();
-
-        // Busca as compras do cliente com paginação
-        $sqlCompras = "SELECT v.id AS id_compra, v.data_venda, v.preco_total, p.nome AS produto 
-                       FROM vendas v
-                       JOIN produtos p ON v.produto_id = p.id
-                       WHERE v.cliente_id = :clienteId
-                       LIMIT :itensPorPagina OFFSET :offset";
-        $stmtCompras = $conn->prepare($sqlCompras);
-        $stmtCompras->bindParam(':clienteId', $clienteId);
-        $stmtCompras->bindParam(':itensPorPagina', $itensPorPagina, PDO::PARAM_INT);
-        $stmtCompras->bindParam(':offset', $offset, PDO::PARAM_INT);
-        $stmtCompras->execute();
-        $compras = $stmtCompras->fetchAll(PDO::FETCH_ASSOC);
-
-        // Verifica se o cliente possui compras
-        if (empty($compras)) {
-            $mensagemErro = "Nenhuma compra encontrada para este CPF.";
-        }
+    if ($data_venda_timestamp < $data_minima || $data_venda_timestamp > $data_maxima) {
+        echo "<script>alert('Erro: A data da venda deve estar dentro do ano atual.');</script>";
     } else {
-        $mensagemErro = "Nenhum cliente encontrado com este CPF.";
+        try {
+            // Inserindo a venda no banco de dados
+            $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) 
+                    VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda, :usuario_id)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(':produto_id', $produto_id);
+            $stmt->bindParam(':cliente_id', $cliente_id);
+            $stmt->bindParam(':quantidade', $quantidade);
+            $stmt->bindParam(':preco_total', $preco_total);
+            $stmt->bindParam(':data_venda', $data_venda);
+            $stmt->bindParam(':usuario_id', $usuario_id);
+
+            if ($stmt->execute()) {
+                // Cria uma descrição detalhada das mudanças para o log
+                $mudancas = [
+                    "Produto ID: $produto_id",
+                    "Cliente ID: $cliente_id",
+                    "Quantidade: $quantidade",
+                    "Preço Total: R$ $preco_total",
+                    "Data da Venda: $data_venda",
+                ];
+
+                // Converter as mudanças para uma string
+                $descricaoMudancas = implode("; ", $mudancas);
+
+                // Cria o comando SQL completo para o log
+                $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda', $usuario_id)";
+
+                // Registra a ação no log, incluindo a descrição das mudanças
+                registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
+
+                $showModal = true; // Mostrar modal ao cadastrar com sucesso
+                
+            } else {
+                echo "Erro ao cadastrar venda.";
+            }
+           
+        } catch (PDOException $e) {
+            echo "Erro ao cadastrar venda: " . $e->getMessage();
+        }
     }
-} else {
-    $mensagemErro = "Por favor, insira um CPF válido.";
 }
 
-// Gerar a URL base para a paginação
-$paginaBaseUrl = 'painel.php?page=ver_compras';
-
-// Gerar o HTML da paginação
-if (!empty($compras)) {
-    $paginacaoHTML = paginarResultados($totalCompras, $itensPorPagina, $paginaAtual, $paginaBaseUrl, $cpf);
-}
+$produtos = obterProdutos($conn);
+$clientes = obterClientes($conn);
 ?>
-
 
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Histórico de Compras</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Cadastrar Venda</title>
+    <link rel="stylesheet" href="../estilos/estilos.css">
     <style>
-        body {
-            font-family: 'Courier New', Consolas, monospace;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-            max-width: 800px;
-            margin: 0 auto; 
-        }
-
-        h2 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .search-container {
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        #cpf {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px 0 0 4px;
-            width: 100%; 
-            box-sizing: border-box; 
-        }
-
-        .search-button {
-            background-color: #007bff; 
+        .btn {
+            display: block;
+            margin: auto;
+            padding: 10px 20px;
+            font-size: 16px;
             color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
-            transition: background-color 0.3s; 
-        }
-
-        .search-button:hover {
-            background-color: #0056b3; 
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-
-        .results-table th, .results-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-
-        .results-table th {
-            background-color: #343a40; 
-            color: white;
-            font-weight: bold;
-        }
-
-        .results-table tbody tr:nth-child(even) {
-            background-color: #f2f2f2; 
-        }
-
-        .error-message {
-            color: red;
-            font-weight: bold;
-            margin-bottom: 10px; 
-        }
-
-        /* Estilização da paginação */
-        .pagination {
-            display: flex;
-            justify-content: center; 
-            margin-top: 20px;
-        }
-
-        .pagination a.page-link {
-            color: #007bff;
-            padding: 6px 12px;
-            border: 1px solid #ddd;
-            margin: 0 4px; 
-            border-radius: 4px;
-            text-decoration: none; 
-            transition: background-color 0.3s; 
-        }
-
-        .pagination a.page-link:hover {
-            background-color: #e9ecef; 
-        }
-
-        .pagination a.page-link.active {
             background-color: #007bff;
-            color: white;
-            border-color: #007bff; 
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Estilo do campo de data */
+        input[type="date"] {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="date"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        /* Estilos para a janela modal */
+        .modal {
+            display: <?php echo $showModal ? 'block' : 'none'; ?>;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 40%;
+            max-width: 500px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
         }
     </style>
 </head>
+
 <body>
+    <h1>Cadastrar Vendas</h1>
+    <form method="post" enctype="multipart/form-data">
+        <label for="produto_id">Produto:</label>
+        <select name="produto_id" id="produto_id" required>
+            <?php foreach ($produtos as $produto): ?>
+                <option value="<?php echo $produto['id']; ?>" data-preco="<?php echo $produto['preco']; ?>">
+                    <?php echo $produto['nome']; ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
-    <div class="container">
-        <h2>Histórico de Compras</h2>
+        <label for="cliente_id">Cliente:</label>
+        <select name="cliente_id" id="cliente_id" required>
+            <?php foreach ($clientes as $cliente): ?>
+                <option value="<?php echo $cliente['id']; ?>"><?php echo $cliente['nome']; ?></option>
+            <?php endforeach; ?>
+        </select>
 
-        <div class="search-container">
-            <input type="text" id="cpf" name="cpf" placeholder="Digite o CPF do cliente (apenas números)" value="<?= $cpf ?>">
-            <button type="submit" class="search-button"><i class="fas fa-search"></i></button>
+        <label for="quantidade">Quantidade:</label>
+        <input type="number" name="quantidade" id="quantidade" placeholder="Quantidade" required>
+
+        <label for="preco_produto" style="display: none;">Preço do Produto:</label>
+        <input type="text" id="preco_produto" style="display: none;">
+
+        <label for="preco_total">Preço Total:</label>
+        <input type="number" name="preco_total" id="preco_total" placeholder="Preço Total" required readonly>
+
+        <label for="data_venda">Data da Venda:</label>
+        <input type="date" name="data_venda" id="data_venda" required>
+
+        <button class="btn" type="submit">Cadastrar Venda</button>
+    </form>
+
+    <!-- Modal de sucesso -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <p>Venda cadastrada com sucesso!</p>
         </div>
-
-        <?php if ($mensagemErro): ?>
-            <p class="error-message"><?= $mensagemErro ?></p>
-        <?php endif; ?>
-
-        <?php if (!empty($compras)): ?>
-            <table class="results-table">
-                <thead>
-                    <tr>
-                        <th>ID da Compra</th>
-                        <th>Data</th>
-                        <th>Produto</th>
-                        <th>Valor Total</th> 
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($compras as $compra): ?>
-                        <tr>
-                            <td><?= $compra['id_compra'] ?></td>
-                            <td><?= $compra['data_venda'] ?></td>
-                            <td><?= $compra['produto'] ?></td>
-                            <td><?= $compra['preco_total'] ?></td> 
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-            <?php if (isset($paginacaoHTML)) echo $paginacaoHTML; ?>
-        <?php endif; ?>
-        <a href="painel.php" class="button-back">Voltar</a>
     </div>
 
+    <script>
+        function calcularPrecoTotal() {
+            const precoInput = document.getElementById('preco_produto');
+            const quantidadeInput = document.getElementById('quantidade');
+            const precoTotalInput = document.getElementById('preco_total');
+
+            const preco = parseFloat(precoInput.value);
+            const quantidade = parseInt(quantidadeInput.value, 10);
+
+            if (!isNaN(preco) && !isNaN(quantidade)) {
+                precoTotalInput.value = (preco * quantidade).toFixed(2);
+            } else {
+                precoTotalInput.value = '0.00';
+            }
+        }
+
+        function atualizarPreco() {
+            const produtoSelect = document.getElementById('produto_id');
+            const precoInput = document.getElementById('preco_produto');
+
+            const selectedOption = produtoSelect.options[produtoSelect.selectedIndex];
+            precoInput.value = selectedOption.dataset.preco;
+
+            calcularPrecoTotal();
+        }
+
+        function validarData() {
+            const dataVendaInput = document.getElementById('data_venda');
+            const dataVenda = new Date(dataVendaInput.value);
+            const hoje = new Date();
+
+            if (dataVenda > hoje) {
+                alert('A data da venda não pode ser futura.');
+                return false;
+            }
+            return true;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('produto_id').addEventListener('change', atualizarPreco);
+            document.getElementById('quantidade').addEventListener('input', calcularPrecoTotal);
+            document.querySelector('form').addEventListener('submit', function(event) {
+                if (!validarData()) {
+                    event.preventDefault(); // Evita o envio do formulário se a data não for válida
+                }
+            });
+
+            // Mostrar o modal se necessário
+            <?php if ($showModal): ?>
+                document.getElementById('successModal').style.display = 'flex';
+            <?php endif; ?>
+        });
+
+        function closeModal() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        function validarData() {
+            const dataVendaInput = document.getElementById('data_venda');
+            const dataVenda = new Date(dataVendaInput.value);
+            const anoAtual = new Date().getFullYear();
+
+            // Verifica se a data está no ano atual
+            if (dataVenda.getFullYear() !== anoAtual) {
+                alert('A data da venda deve estar dentro do ano atual.');
+                return false;
+            }
+
+            return true;
+        }
+        
+    </script>
 </body>
+
 </html>

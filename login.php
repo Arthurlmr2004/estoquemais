@@ -14,23 +14,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $senha = $_POST['senha'];
 
     // Busca o usuário no banco de dados
-    $sql = "SELECT * FROM usuarios WHERE usuario = :usuario"; 
+    $sql = "SELECT * FROM usuarios WHERE usuario = :usuario";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':usuario', $usuario);
     $stmt->execute();
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+
     // Verifica se o usuário foi encontrado e se a senha está correta
     if ($user && $senha === $user['senha']) {
+        $_SESSION['usuario_id'] = $user['id']; // Armazena o ID do usuário logado
         $_SESSION['usuario'] = $user['usuario'];
         $_SESSION['perfil'] = $user['perfil'];  // Salva o perfil na sessão!
         header('Location: painel.php');
         exit();
     } else {
         $mensagemErro = "Usuário ou senha inválidos!";
-        
     }
-   
 }
 ?>
 

@@ -1,55 +1,55 @@
 <?php
 include('includes/conexao.php');
 
-// Verifica se o usuário está autenticado
 if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
 
-// Função para atualizar dados do fornecedor
-function atualizarFornecedor($conn, $id, $nome, $endereco, $telefone, $email, $cnpj)
+// Função para paginação (modificada para exibir 3 links por vez)
+function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
 {
-    $sql = "UPDATE fornecedores SET nome = :nome, endereco = :endereco, 
-            telefone = :telefone, email = :email, cnpj = :cnpj WHERE id = :id";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(':nome', $nome, PDO::PARAM_STR);
-    $stmt->bindParam(':endereco', $endereco, PDO::PARAM_STR);
-    $stmt->bindParam(':telefone', $telefone, PDO::PARAM_STR);
-    $stmt->bindParam(':email', $email, PDO::PARAM_STR);
-    $stmt->bindParam(':cnpj', $cnpj, PDO::PARAM_STR);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    return $stmt->execute();
-}
+    $totalPaginas = ceil($totalRegistros / $itensPorPagina);
+    $paginacaoHTML = '<div class="paginacao">';
 
-// Processa edição se o formulário for enviado
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_fornecedor'])) {
-    $id = $_POST['id'];
-    $nome = $_POST['nome'];
-    $endereco = $_POST['endereco'];
-    $telefone = $_POST['telefone'];
-    $email = $_POST['email'];
-    $cnpj = $_POST['cnpj'];
-
-    if (atualizarFornecedor($conn, $id, $nome, $endereco, $telefone, $email, $cnpj)) {
-        echo "<script>alert('Fornecedor atualizado com sucesso!');</script>";
-        echo "<script>window.location.href='?page=mostrar_fornecedores';</script>";
-    } else {
-        echo "<script>alert('Erro ao atualizar fornecedor.');</script>";
+    // Botão "Anterior"
+    if ($paginaAtual > 1) {
+        $paginaAnterior = $paginaAtual - 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'> Anterior</a>";
     }
+
+    // Calcula o intervalo de páginas a serem exibidas
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
+    // Links para as páginas
+    for ($i = $inicio; $i <= $fim; $i++) {
+        if ($i == $paginaAtual) {
+            $paginacaoHTML .= "<span class='pagina-atual'>$i</span>";
+        } else {
+            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&itensPorPagina=$itensPorPagina'>$i</a>";
+        }
+    }
+
+    // Botão "Próximo"
+    if ($paginaAtual < $totalPaginas) {
+        $paginaProxima = $paginaAtual + 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'> Próximo </a>";
+    }
+
+    $paginacaoHTML .= '</div>';
+    return $paginacaoHTML;
 }
 
-// Defina o número de fornecedores por página
-$fornecedoresPorPagina = 10;
-
-// Obtenha a página atual (se não definida, usa a página 1)
-$paginaAtual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
-$offset = ($paginaAtual - 1) * $fornecedoresPorPagina;
+// Parâmetros da paginação
+$itensPorPagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5;
+$paginaAtual = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$offset = ($paginaAtual - 1) * $itensPorPagina;
 
 // Filtro de situação
 $situacaoFiltro = isset($_GET['situacao']) ? $_GET['situacao'] : 'todos';
 
-// Consulta SQL para contar o total de fornecedores
+// Consulta SQL para contar o total de fornecedores (considerando o filtro)
 $sqlContagem = "SELECT COUNT(*) as total FROM fornecedores";
 if ($situacaoFiltro !== 'todos') {
     $sqlContagem .= " WHERE situacao = :situacao";
@@ -62,7 +62,7 @@ $stmtContagem->execute();
 $totalFornecedores = $stmtContagem->fetch(PDO::FETCH_ASSOC)['total'];
 
 // Calcular o número total de páginas
-$totalPaginas = ceil($totalFornecedores / $fornecedoresPorPagina);
+$totalPaginas = ceil($totalFornecedores / $itensPorPagina);
 
 // Consulta SQL para buscar fornecedores com paginação
 $sql = "SELECT * FROM fornecedores";
@@ -75,10 +75,16 @@ $stmt = $conn->prepare($sql);
 if ($situacaoFiltro !== 'todos') {
     $stmt->bindParam(':situacao', $situacaoFiltro);
 }
-$stmt->bindParam(':limite', $fornecedoresPorPagina, PDO::PARAM_INT);
+$stmt->bindParam(':limite', $itensPorPagina, PDO::PARAM_INT);
 $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Gerar a URL base para a paginação (incluindo o filtro e a quantidade de itens)
+$paginaBaseUrl = "painel.php?page=mostrar_fornecedores&situacao=$situacaoFiltro&itensPorPagina=$itensPorPagina";
+
+// Gerar o HTML da paginação
+$paginacaoHTML = paginarResultados($totalFornecedores, $itensPorPagina, $paginaAtual, $paginaBaseUrl);
 ?>
 
 <!DOCTYPE html>
@@ -101,7 +107,7 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     // Redireciona para a página com a situação correta
-                    window.location.href = "?page=mostrar_fornecedores&situacao=" + ((situacaoAtual === 'ativo') ? 'ativo' : 'inativo');
+                    window.location.href = "?page=mostrar_fornecedores&situacao=" + ((situacaoAtual === 'ativo') ? 'ativo' : 'inativo') + '&itensPorPagina=<?php echo $itensPorPagina; ?>'; // Mantém a quantidade de itens por página
                 }
             };
 
@@ -182,11 +188,50 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box;
-            /* Inclui padding e border no cálculo da largura total */
+            /* Inclui padding e b   order no cálculo da largura total */
+
+
         }
 
         a {
             text-decoration: none;
+        }
+
+        .paginacao {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .paginacao a,
+        .paginacao span {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            background-color: white;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .paginacao a {
+            color: #000;
+            /* Cor do link */
+        }
+
+        .paginacao a:hover {
+            background-color: #6f6a6a;
+            /* Cor de fundo no hover */
+            color: #fff;
+            /* Cor do texto no hover */
+        }
+
+        .paginacao .pagina-atual {
+            /* Estilo para a página atual */
+            font-weight: bold;
+            color: #fff;
+            background-color: #6f6a6a;
         }
 
         table input:focus {
@@ -341,24 +386,35 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 transform: translateY(0);
             }
         }
+
+        .itensPagina {
+            margin-left: 5px;
+        }
     </style>
 </head>
 
 <body>
     <h1>Fornecedores</h1>
 
-    <!-- Filtro -->
+    <!-- Filtro e Itens por Página -->
     <div class="filtro-container">
         <label for="situacao">Filtro:</label>
-        <select id="situacao" onchange="window.location.href='?page=mostrar_fornecedores&situacao=' + this.value;">
+        <select id="situacao" onchange="window.location.href='?page=mostrar_fornecedores&situacao=' + this.value + '&itensPorPagina=<?php echo $itensPorPagina; ?>&pagina=<?php echo $paginaAtual; ?>';">
             <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
             <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
             <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
         </select>
+
+        <label for="itensPorPagina" class="itensPagina">Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_fornecedores&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">
+            <option value="5" <?php echo ($itensPorPagina == 5) ? 'selected' : ''; ?>>5</option>
+            <option value="10" <?php echo ($itensPorPagina == 10) ? 'selected' : ''; ?>>10</option>
+            <!-- Adicione mais opções conforme necessário -->
+        </select>
     </div>
 
     <!-- Tabela de fornecedores -->
-    <table border="1" cellpadding="10" cellspacing="0">
+    <table border="1" cellpadding="10" cellspacing="0" id="tabelaFornecedor">
         <thead>
             <tr>
                 <th>ID</th>
@@ -417,20 +473,7 @@ $fornecedores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Links de paginação -->
     <div class="paginacao">
-        <?php if ($paginaAtual > 1): ?>
-            <a href="?page=mostrar_fornecedores&pagina=<?php echo $paginaAtual - 1; ?>&situacao=<?php echo $situacaoFiltro; ?>">Anterior</a>
-        <?php endif; ?>
-
-        <?php for ($i = 1; $i <= $totalPaginas; $i++): ?>
-            <a href="?page=mostrar_fornecedores&pagina=<?php echo $i; ?>&situacao=<?php echo $situacaoFiltro; ?>"
-                <?php echo ($i === $paginaAtual) ? 'style="font-weight: bold;"' : ''; ?>>
-                <?php echo $i; ?>
-            </a>
-        <?php endfor; ?>
-
-        <?php if ($paginaAtual < $totalPaginas): ?>
-            <a href="?page=mostrar_fornecedores&pagina=<?php echo $paginaAtual + 1; ?>&situacao=<?php echo $situacaoFiltro; ?>">Próxima</a>
-        <?php endif; ?>
+        <?php echo $paginacaoHTML; ?>
     </div>
 
     <!-- Modal para edição de fornecedor -->

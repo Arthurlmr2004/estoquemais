@@ -69,11 +69,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Registra a ação no log, incluindo a descrição das mudanças e os dados novos
                 registrarLog($conn, $usuarioLogado, 'Inserção de Fornecedor', 'fornecedores', $comandoSqlCompleto, '', $descricaoMudancas);
 
-                // Cadastro bem-sucedido
                 $showModal = true;
+                $showErrorModal = false;
             } else {
                 $errorMessage = "Erro ao cadastrar o fornecedor.";
                 $showErrorModal = true;
+                $showModal = false;
             }
         }
     } catch (PDOException $e) {
@@ -160,19 +161,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <input type="submit" value="Voltar" onclick="window.location.href='painel.php'">
     </form>
 
-    <div id="successModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <p>Fornecedor cadastrado com sucesso!</p>
+    <?php if ($showModal): ?>
+        <div id="successModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">×</span>
+                <p>Fornecedor cadastrado com sucesso!</p>
+            </div>
         </div>
-    </div>
-
-    <div id="errorModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeErrorModal()">&times;</span>
-            <p class="error"><?php echo htmlspecialchars($errorMessage); ?></p>
+    <?php endif; ?>
+    
+    <?php if ($showErrorModal): ?> 
+        <div id="errorModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <span class="close" onclick="closeErrorModal()">×</span>
+                <p class="error"><?php echo htmlspecialchars($errorMessage); ?></p>
+            </div>
         </div>
-    </div>
+    <?php endif; ?> 
 
     <script>
         // Script para exibir a janela modal

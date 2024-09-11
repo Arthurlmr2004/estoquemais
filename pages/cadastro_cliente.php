@@ -111,7 +111,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             text-decoration: none;
             cursor: pointer;
         }
-        h2{
+
+        h2 {
             color: black;
         }
     </style>

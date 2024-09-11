@@ -227,6 +227,7 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
             <img src="images/Logo.png" alt="">
 
             <?php if ($perfil === 'admin'): ?>
+                <a href="painel.php"><i class="fas fa-home"></i> Painel</a>
                 <a href="?page=cadastrar_usuario"><i class="fas fa-user-plus"></i> Cadastrar Usuário</a>
                 <div>
                     <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')"><i class="fas fa-users"></i> Cadastro de Clientes <span class="arrow down"></span></a>
@@ -258,7 +259,7 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
                         <a href="?page=cadastro_vendas">Inserir</a>
                     </div>
                 </div>
-                    
+
                 <a href="?page=relatorios"><i class="fas fa-file-alt"></i> Relatórios</a>
                 <a href="?page=ver_compras"><i class="fas fa-receipt"></i> Ver Compras Clientes</a>
                 <a href="?page=gerenciar_estoque"><i class="fas fa-cogs"></i> Gerenciar Estoque</a>

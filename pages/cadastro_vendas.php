@@ -23,6 +23,7 @@ if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION
 
 // Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
 $usuarioLogado = $_SESSION['usuario'];
+$usuario_id = $_SESSION['usuario_id'];
 
 // Variável para controlar exibição do modal
 $showModal = false;
@@ -46,13 +47,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             // Inserindo a venda no banco de dados
-            $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda)";
+            $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) 
+                    VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda, :usuario_id)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(':produto_id', $produto_id);
             $stmt->bindParam(':cliente_id', $cliente_id);
             $stmt->bindParam(':quantidade', $quantidade);
             $stmt->bindParam(':preco_total', $preco_total);
             $stmt->bindParam(':data_venda', $data_venda);
+            $stmt->bindParam(':usuario_id', $usuario_id);
 
             if ($stmt->execute()) {
                 // Cria uma descrição detalhada das mudanças para o log
@@ -61,19 +64,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     "Cliente ID: $cliente_id",
                     "Quantidade: $quantidade",
                     "Preço Total: R$ $preco_total",
-                    "Data da Venda: $data_venda"
+                    "Data da Venda: $data_venda",
                 ];
 
                 // Converter as mudanças para uma string
                 $descricaoMudancas = implode("; ", $mudancas);
 
                 // Cria o comando SQL completo para o log
-                $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda')";
+                $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda', $usuario_id)";
 
                 // Registra a ação no log, incluindo a descrição das mudanças
                 registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
 
                 $showModal = true; // Mostrar modal ao cadastrar com sucesso
+
             } else {
                 echo "Erro ao cadastrar venda.";
             }
@@ -266,6 +270,7 @@ $clientes = obterClientes($conn);
 
         function closeModal() {
             document.getElementById('successModal').style.display = 'none';
+            window.location.href = 'painel.php?page=cadastro_vendas';
         }
 
         function validarData() {
@@ -278,6 +283,7 @@ $clientes = obterClientes($conn);
                 alert('A data da venda deve estar dentro do ano atual.');
                 return false;
             }
+            
 
             return true;
         }

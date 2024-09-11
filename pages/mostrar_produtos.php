@@ -40,21 +40,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['editar_produto'])) {
     }
 }
 
+function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
+{
+    $totalPaginas = ceil($totalRegistros / $itensPorPagina);
+    $paginacaoHTML = '<div class="paginacao">';
+
+    // Botão "Anterior"
+    if ($paginaAtual > 1) {
+        $paginaAnterior = $paginaAtual - 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'>Anterior</a>";
+    }
+
+    // Calcula o intervalo de páginas a serem exibidas
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
+    // Links para as páginas
+    for ($i = $inicio; $i <= $fim; $i++) {
+        if ($i == $paginaAtual) {
+            $paginacaoHTML .= "<span class='pagina-atual'>$i</span>";
+        } else {
+            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&itensPorPagina=$itensPorPagina'>$i</a>";
+        }
+    }
+
+    // Botão "Próximo"
+    if ($paginaAtual < $totalPaginas) {
+        $paginaProxima = $paginaAtual + 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>";
+    }
+
+    $paginacaoHTML .= '</div>';
+    return $paginacaoHTML;
+}
+
+// Paginação
+$itensPorPagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5; // Define 5 como padrão
+$paginaAtual = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$offset = ($paginaAtual - 1) * $itensPorPagina;
+
 // Obtém a situação dos produtos (filtro)
 $situacaoFiltro = isset($_GET['situacao']) ? $_GET['situacao'] : 'todos';
 
-// Consulta SQL para buscar produtos, com filtro opcional
+// Consulta SQL para buscar produtos, com filtro opcional e paginação
 $sql = "SELECT * FROM produtos";
 if ($situacaoFiltro !== 'todos') {
     $sql .= " WHERE situacao = :situacao";
 }
+$sql .= " LIMIT :itensPorPagina OFFSET :offset";
 
 $stmt = $conn->prepare($sql);
 if ($situacaoFiltro !== 'todos') {
     $stmt->bindParam(':situacao', $situacaoFiltro);
 }
+$stmt->bindParam(':itensPorPagina', $itensPorPagina, PDO::PARAM_INT);
+$stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Consulta para obter o total de produtos (para paginação)
+$sqlTotal = "SELECT COUNT(*) FROM produtos";
+if ($situacaoFiltro !== 'todos') {
+    $sqlTotal .= " WHERE situacao = :situacao";
+}
+$stmtTotal = $conn->prepare($sqlTotal);
+if ($situacaoFiltro !== 'todos') {
+    $stmtTotal->bindParam(':situacao', $situacaoFiltro);
+}
+$stmtTotal->execute();
+$totalProdutos = $stmtTotal->fetchColumn();
+
+// Calcula o número total de páginas
+$totalPaginas = ceil($totalProdutos / $itensPorPagina);
+
+$paginaBaseUrl = "painel.php?page=mostrar_produtos&situacao=$situacaoFiltro&itensPorPagina=$itensPorPagina";
+
+$paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual, $paginaBaseUrl);
 ?>
 
 <!DOCTYPE html>
@@ -140,14 +201,26 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             xhr.send(params);
         }
 
-        function cancelarEdicao(id) {
-            // Recarregar a página para cancelar a edição
-            location.reload();
+        function abrirModalEdicao(produto) {
+            // Preenche os campos do modal com os dados do produto
+            document.getElementById('produto-id').value = produto.id;
+            document.getElementById('edit-nome').value = produto.nome;
+            document.getElementById('edit-descricao').value = produto.descricao;
+            document.getElementById('edit-preco').value = produto.preco;
+            document.getElementById('edit-quantidade').value = produto.quantidade;
+
+            // Mostra o modal
+            document.getElementById('modal-editar-produto').style.display = 'flex';
+        }
+
+        function fecharModalEdicao() {
+            // Esconde o modal
+            document.getElementById('modal-editar-produto').style.display = 'none';
         }
     </script>
     <style>
-         /* Estilos para inputs dentro da tabela */
-         table input[type="text"],
+        /* Estilos para inputs dentro da tabela */
+        table input[type="text"],
         table input[type="email"],
         table input[type="number"] {
             width: 100%;
@@ -159,6 +232,47 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             /* Inclui padding e border no cálculo da largura total */
         }
 
+        a {
+            text-decoration: none;
+        }
+
+        .paginacao {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .paginacao a,
+        .paginacao span {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            background-color: white;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .paginacao a {
+            color: #000;
+            /* Cor do link */
+        }
+
+        .paginacao a:hover {
+            background-color: #6f6a6a;
+            /* Cor de fundo no hover */
+            color: #fff;
+            /* Cor do texto no hover */
+        }
+
+        .paginacao .pagina-atual {
+            /* Estilo para a página atual */
+            font-weight: bold;
+            color: #fff;
+            background-color: #6f6a6a;
+        }
+
         table input:focus {
             outline: none;
             /* Remove a borda de foco padrão */
@@ -167,11 +281,12 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             box-shadow: 0 0 5px rgba(51, 122, 183, 0.5);
             /* Adiciona uma sombra suave quando em foco */
         }
-        /* Estilos para o botão */
+
         .btn {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 8px 16px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             text-align: center;
             white-space: nowrap;
@@ -180,72 +295,141 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border: none;
             border-radius: 5px;
             transition: all 0.3s ease;
-            color: #fff;
+            margin-right: 5px;
         }
 
         .btn-danger {
             background-color: #dc3545;
+            color: #fff;
         }
 
         .btn-success {
             background-color: #28a745;
+            color: #fff;
         }
 
-        .btn-danger:hover,
-        .btn-danger:focus {
-            background-color: #c82333;
-            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.5);
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
         }
 
-        .btn-success:hover,
-        .btn-success:focus {
-            background-color: #218838;
-            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.5);
+        .btn i {
+            margin-right: 5px;
+        }
+
+        /* Hover e Focus para todos os botões */
+        .btn:hover,
+        .btn:focus {
+            opacity: 0.8;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
         }
 
         td.situacao-ativo {
             background-color: #d4edda;
+            /* Verde claro para ativo */
             font-weight: bold;
         }
 
         td.situacao-inativo {
             background-color: #f8d7da;
+            /* Vermelho claro para inativo */
             font-weight: bold;
         }
 
-        /* Estilos para o filtro */
         .filtro-container {
             display: flex;
             align-items: center;
+            /* Alinha os itens verticalmente */
             margin-bottom: 20px;
+            /* Adiciona margem inferior */
         }
 
         .filtro-container label {
             margin-right: 10px;
+            /* Adiciona margem direita ao label */
         }
 
         .filtro-container select {
             padding: 8px 12px;
+            /* Espaçamento interno */
             font-size: 16px;
+            /* Tamanho da fonte */
             border: 1px solid #ced4da;
+            /* Borda cinza claro */
             border-radius: 5px;
+            /* Cantos arredondados */
             background-color: #fff;
+            /* Posição da seta */
             background-size: 16px 12px;
+            /* Tamanho da seta */
         }
 
         .filtro-container select:focus {
             outline: none;
+            /* Remove o contorno ao focar */
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            /* Sombra ao focar */
         }
 
         .filtro-container select option {
             background-color: #fff;
+            /* Cor de fundo das opções */
             color: #343a40;
+            /* Cor do texto das opções */
         }
 
-        /* Centraliza o conteúdo da célula da tabela */
-        td {
-            text-align: center;
+        /* Estilos para o modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            width: 400px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .modal-content {
+            animation: modalFadeIn 0.5s;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+
+        .itensPagina {
+            margin-left: 5px;
+
         }
     </style>
 </head>
@@ -253,18 +437,22 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <h1>Produtos</h1>
 
-    <!-- Filtro (manter o código existente) -->
+    <!-- Filtro e Itens por Página -->
     <div class="filtro-container">
         <label for="situacao">Filtro:</label>
-        <select id="situacao" onchange="window.location.href='?page=mostrar_produtos&situacao=' + this.value;">
+        <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_produtos&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">
             <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
             <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
             <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
         </select>
+
+
+        <label for="itensPorPagina" class="itensPagina">Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_produtos&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">
+            <option value="5" <?php echo ($itensPorPagina == 5) ? 'selected' : ''; ?>>5</option>
+            <option value="10" <?php echo ($itensPorPagina == 10) ? 'selected' : ''; ?>>10</option>
+        </select>
     </div>
-
-    <!-- Tabela de produtos -->
-
 
     <!-- Tabela de produtos -->
     <table border="1" cellpadding="10" cellspacing="0">
@@ -288,20 +476,23 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo $produto['quantidade']; ?></td>
                     <td>
                         <?php if ($produto['situacao'] === 'ativo'): ?>
-                            <a href="#" onclick="alterarStatusProduto(<?php echo $produto['id']; ?>, 'ativo'); return false;" class="btn btn-danger btn-sm">Desativar</a>
+                            <a href="#" onclick="alterarStatusProduto(<?php echo $produto['id']; ?>, 'ativo'); return false;" class="btn btn-danger btn-sm"><i class="fas fa-ban"></i> Desativar</a>
                         <?php else: ?>
-                            <a href="#" onclick="alterarStatusProduto(<?php echo $produto['id']; ?>, 'inativo'); return false;" class="btn btn-success btn-sm">Ativar</a>
+                            <a href="#" onclick="alterarStatusProduto(<?php echo $produto['id']; ?>, 'inativo'); return false;" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Ativar</a>
                         <?php endif; ?>
 
                         <!-- Botão de Editar CORRIGIDO: -->
-                        <button class="btn btn-primary btn-sm" onclick="editarProduto(<?php echo $produto['id']; ?>)">Editar</button>
+                        <button class="btn btn-primary btn-sm btn-warning" onclick="editarProduto(<?php echo $produto['id']; ?>)"><i class="fas fa-edit"></i> Editar</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
 
-    <!-- ... (resto do código) -->
+    <div class="paginacao">
+        <?php echo $paginacaoHTML; ?>
+    </div>
+
 </body>
 
 </html>

@@ -1,10 +1,23 @@
 <?php
 include 'includes/conexao.php';
+include 'funcoes_log.php';
 
+// Verifica se o usuário está autenticado como admin ou vendedor
 if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
     header('Location: nao_autorizado.php');
     exit();
 }
+
+$usuarioLogado = $_SESSION['usuario'];
+
+// Inicialmente, não exibe o modal
+$showModal = false;
+$mensagemErro = "";
+
+// Buscar fornecedores
+$sqlFornecedores = "SELECT id, nome FROM fornecedores";
+$stmtFornecedores = $conn->query($sqlFornecedores);
+$fornecedores = $stmtFornecedores->fetchAll(PDO::FETCH_ASSOC);
 
 // Função para paginação
 function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
@@ -15,22 +28,26 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior'>« Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'> Anterior</a>"; // Adiciona itensPorPagina
     }
 
+    // Calcula o intervalo de páginas a serem exibidas
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
     // Links para as páginas
-    for ($i = 1; $i <= $totalPaginas; $i++) {
+    for ($i = $inicio; $i <= $fim; $i++) {
         if ($i == $paginaAtual) {
             $paginacaoHTML .= "<span class='pagina-atual'>$i</span>";
         } else {
-            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i'>$i</a>";
+            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&itensPorPagina=$itensPorPagina'>$i</a>";
         }
     }
 
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima'>Próximo »</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>"; // Adiciona itensPorPagina
     }
 
     $paginacaoHTML .= '</div>';
@@ -38,7 +55,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
 }
 
 // Parâmetros da paginação
-$itensPorPagina = 3; // Quantidade de itens por página
+$itensPorPagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5; // Define 5 como padrão
 $paginaAtual = isset($_GET['pagina']) && is_numeric($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
 $offset = ($paginaAtual - 1) * $itensPorPagina;
 
@@ -62,10 +79,17 @@ $paginaBaseUrl = 'painel.php?page=gerenciar_estoque';
 // Gerar o HTML da paginação
 $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual, $paginaBaseUrl);
 
-// Atualização de quantidade (permanece o mesmo)
+// Atualização de quantidade 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
     $produto_id = $_POST['id'];
     $nova_quantidade = $_POST['estoque_minimo'];
+
+    // Buscar o valor antigo de estoque_minimo
+    $sqlSelect = "SELECT estoque_minimo FROM produtos WHERE id = :id";
+    $stmtSelect = $conn->prepare($sqlSelect);
+    $stmtSelect->bindParam(':id', $produto_id, PDO::PARAM_INT);
+    $stmtSelect->execute();
+    $estoque_minimo_antigo = $stmtSelect->fetchColumn();
 
     // Preparar e executar a consulta SQL para atualizar a estoque_minimo
     $sqlUpdate = "UPDATE produtos SET estoque_minimo = :estoque_minimo WHERE id = :id";
@@ -74,8 +98,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
     $stmtUpdate->bindParam(':id', $produto_id);
 
     try {
-        $stmtUpdate->execute();
-        echo "<p>Quantidade atualizada com sucesso!</p>";
+        if ($stmtUpdate->execute()) {
+            // Crie o comando SQL completo para o log
+            $comandoSqlCompleto = "UPDATE produtos SET estoque_minimo = $nova_quantidade WHERE id = $produto_id";
+
+            // Registra a ação no log
+            registrarLog($conn, $usuarioLogado, 'Atualização de Estoque', 'produtos', $comandoSqlCompleto, "Estoque Mínimo antigo: $estoque_minimo_antigo", "Estoque Mínimo novo: $nova_quantidade");
+        } else {
+            echo "Erro ao atualizar a quantidade: " . $e->getMessage();
+        }
     } catch (PDOException $e) {
         echo "Erro ao atualizar a quantidade: " . $e->getMessage();
     }
@@ -89,56 +120,112 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
     <meta charset="UTF-8">
     <title>Gerenciamento de Estoque</title>
     <link rel="stylesheet" href="../estilos/estilos.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         h2 {
             text-align: center;
-            font-size: 2rem;
-            color: black;
+            font-size: 1.5rem;
+            color: #333;
+            /* Cor do título - Azul */
             margin-bottom: 20px;
+        }
+
+        .paginacao {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .paginacao a,
+        .paginacao span {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #007bff;
+            /* Cor do link - Azul */
+            background-color: white;
+            border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .paginacao a {
+            color: #000;
+            /* Cor do link - Preto */
+        }
+
+        .paginacao a:hover {
+            background-color: #6f6a6a;
+            /* Cor de fundo no hover - Cinza escuro */
+            color: #fff;
+            /* Cor do texto no hover - Branco */
+        }
+
+        .paginacao .pagina-atual {
+            font-weight: bold;
+            color: #fff;
+            /* Cor do texto - Branco */
+            background-color: #6f6a6a;
+            /* Cor de fundo - Cinza escuro */
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            
         }
 
         table th,
         table td {
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ddd;
             text-align: left;
-            
+            border: none;
         }
 
         table th {
-            background-color: #f2f2f2;
-            color: #333;
+            color: white;
             font-weight: bold;
+            background-color: #2c3e50;
+            /* Cor de fundo do cabeçalho - Azul escuro */
+        }
+
+        /* Estilos para linhas pares e ímpares */
+        table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+            /* Cor mais clara para linhas pares */
         }
 
         table tbody tr:nth-child(odd) {
-            background-color: #f9f9f9;
+            background-color: #ffffff;
+            /* Branco para linhas ímpares */
         }
 
         table tbody tr:hover {
             background-color: #f1f1f1;
+            /* Cor de fundo no hover - Cinza muito claro */
         }
 
         .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            cursor: pointer;
             border: none;
             border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            margin-right: 5px;
         }
 
         .btn:hover {
             background-color: #0056b3;
+            /* Cor de fundo no hover - Azul mais escuro */
         }
 
         /* Modal CSS */
@@ -153,6 +240,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             background-color: rgba(0, 0, 0, 0.5);
             justify-content: center;
             align-items: center;
+            color: black;
         }
 
         .modal-content {
@@ -162,16 +250,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             width: 400px;
             position: relative;
             text-align: center;
-            /* Centraliza o texto no modal */
         }
 
         .modal-success-message {
             color: #28a745;
-            /* Verde para a mensagem de sucesso */
             font-size: 1.5rem;
-            /* Tamanho da fonte ajustado */
             text-align: center;
-            /* Centralizar a mensagem */
         }
 
         .close {
@@ -203,11 +287,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             width: 300px;
             text-align: center;
         }
+
+        /* Estilos para o select de quantidade de itens por página */
+        .itens-por-pagina {
+            margin-bottom: 20px;
+            display: block;
+            width: 100%;
+        }
+
+        .itens-por-pagina label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .itens-por-pagina select {
+            padding: 6px 10px;
+            font-size: 16px;
+            
+            border-radius: 4px;
+        }
+
+        .btn-warning {
+            background-color: #ffc107;
+            /* Amarelo do Bootstrap */
+            border-color: #ffc107;
+            color: #212529;
+            font-weight: bold;
+            /* Cor do texto - Preto */
+        }
+
+        .btn-warning:hover {
+            background-color: #e0a800;
+            /* Amarelo mais escuro no hover */
+            border-color: #e0a800;
+        }
+
+        .btn:hover,
+        .btn:focus {
+            opacity: 0.8;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
+        }
+
+       
     </style>
 </head>
 
 <body>
     <h2>Gerenciar Estoque</h2>
+
+    <!-- Itens por Página -->
+    <div class="itens-por-pagina" >
+        <label for="itensPorPagina" >Itens por Página:</label>
+        <select id="itensPorPagina"  onchange="window.location.href='?page=gerenciar_estoque&itensPorPagina=' + this.value;">
+            <option value="5" <?php if ($itensPorPagina == 5) echo 'selected'; ?>>5</option>
+            <option value="10" <?php if ($itensPorPagina == 10) echo 'selected'; ?>>10</option>
+        </select>
+    </div>
 
     <table>
         <thead>
@@ -231,12 +366,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
                     <td class="estoque-minimo"><?php echo htmlspecialchars($produto['estoque_minimo']); ?></td>
                     <td class="estoque-maximo"><?php echo htmlspecialchars($produto['estoque_maximo']); ?></td>
                     <td>
-                        <button class="btn btn-warning" onclick="abrirModal(<?php echo htmlspecialchars(json_encode($produto)); ?>)">Atualizar</button>
+                        <button class="btn btn-sm btn-warning" onclick="abrirModal(<?php echo htmlspecialchars(json_encode($produto)); ?>)">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
+    <!-- Paginação -->
+    <div class="paginacao">
+        <?php echo $paginacaoHTML; ?>
+    </div>
 
     <div id="modal-editar" class="modal">
         <div class="modal-content">
@@ -261,7 +402,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             <h2 class="modal-success-message">Estoque atualizado com sucesso!</h2>
         </div>
     </div>
-
 
     <script>
         function abrirModal(produto) {
@@ -328,7 +468,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             sucessoModal.style.display = 'flex';
             setTimeout(function() {
                 sucessoModal.style.display = 'none';
-            }, 3000); // Fecha o modal após 3 segundos
+            }, 10000); // Fecha o modal após 3 segundos
         }
     </script>
 

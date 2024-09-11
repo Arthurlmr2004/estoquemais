@@ -66,4 +66,3 @@ if ($id > 0) {
         echo "Erro ao atualizar o status do produto.";
     }
 }
-?>

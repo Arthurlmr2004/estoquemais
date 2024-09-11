@@ -2,7 +2,7 @@
 include 'includes/conexao.php';
 
 // Defina o número de produtos por página
-$produtos_por_pagina = 10;
+$produtos_por_pagina = isset($_GET['itensPorPagina']) ? (int)$_GET['itensPorPagina'] : 5; // 10 por padrão
 
 // Verifique a página atual a partir da URL
 $page = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
@@ -13,7 +13,7 @@ if ($offset < 0) {
     $offset = 0;
 }
 
-// Busque o total de produtos
+/// Busque o total de produtos
 $sql_total = "SELECT COUNT(*) FROM produtos";
 $stmt_total = $conn->prepare($sql_total);
 $stmt_total->execute();
@@ -82,7 +82,8 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             margin: 0 5px;
             border-radius: 5px;
             text-decoration: none;
-            color: #333;
+            font-weight: bold;
+            color: black;
             /* Cor cinza mais clara */
             background-color: white;
             /* Cor de fundo clara */
@@ -90,16 +91,20 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
+        .paginacao a {
+            color: #000;
+        }
+
         .pagination a:hover {
-            background-color: #007bff;
+            background-color: #6f6a6a;
             color: #fff;
         }
 
         .pagination .active {
 
             color: #fff;
-            background-color: #007bff;
-            border-color: #007bff;
+            background-color: #6f6a6a;
+
         }
 
         /* Botão Voltar */
@@ -153,11 +158,56 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             /* Cor ativa e de hover cinza escura */
             color: #fff;
         }
+
+        .filtro-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .filtro-container label {
+            margin-right: 10px;
+        }
+
+        .filtro-container select {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            /* Borda cinza claro */
+            border-radius: 5px;
+            /* Cantos arredondados */
+
+            /* Remove a seta padrão do select */
+            background-color: #fff;
+            /* Fundo branco */
+
+            /* Adiciona uma seta customizada */
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            /* Posiciona a seta à direita */
+            background-size: 16px 12px;
+            /* Define o tamanho da seta */
+        }
+
+        .filtro-container select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+            /* Sombra azul ao focar */
+        }
     </style>
 </head>
 
 <body>
     <h1>Lista de Produtos</h1>
+
+    <div class="filtro-container">
+        <label for="itensPorPagina">Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='painel.php?page=ver_produtos_usuario&itensPorPagina=' + this.value + '&pagina=1';">
+            <option value="5" <?php echo ($produtos_por_pagina == 5) ? 'selected' : ''; ?>>5</option>
+            <option value="10" <?php echo ($produtos_por_pagina == 10) ? 'selected' : ''; ?>>10</option>
+            <!-- Adicione mais opções conforme necessário -->
+        </select>
+    </div>
     <table>
         <thead>
             <tr>
@@ -190,17 +240,17 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Navegação de Paginação -->
     <div class="pagination">
         <?php if ($page > 1): ?>
-            <a href="painel.php?page=ver_produtos_usuario&pagina=<?php echo $page - 1; ?>">&laquo; Anterior</a>
+            <a href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $page - 1; ?>"> Anterior</a>
         <?php endif; ?>
 
         <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-            <a class="<?php echo $i == $page ? 'active' : ''; ?>" href="painel.php?page=ver_produtos_usuario&pagina=<?php echo $i; ?>">
+            <a class="<?php echo $i == $page ? 'active' : ''; ?>" href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $i; ?>">
                 <?php echo $i; ?>
             </a>
         <?php endfor; ?>
 
         <?php if ($page < $total_paginas): ?>
-            <a href="painel.php?page=ver_produtos_usuario&pagina=<?php echo $page + 1; ?>">Próxima &raquo;</a>
+            <a href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $page + 1; ?>">Próxima </a>
         <?php endif; ?>
     </div>
 </body>
