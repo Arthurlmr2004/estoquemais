@@ -228,6 +228,7 @@ $totalProdutosInativos = $queryProdutosInativos->fetch(PDO::FETCH_ASSOC)['total'
 
             <?php if ($perfil === 'admin'): ?>
                 <a href="painel.php"><i class="fas fa-home"></i> Painel</a>
+                <a href="?page=mostrar_logs"><i class="fas fa-book-open"></i> Exibir Logs</a>
                 <a href="?page=cadastrar_usuario"><i class="fas fa-user-plus"></i> Cadastrar Usuário</a>
                 <div>
                     <a href="javascript:void(0);" onclick="toggleMenu('clientes-menu')"><i class="fas fa-users"></i> Cadastro de Clientes <span class="arrow down"></span></a>

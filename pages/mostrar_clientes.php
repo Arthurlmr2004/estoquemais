@@ -16,7 +16,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'>Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'><i class='fas fa-chevron-left'></i></a>";
     }
 
     // Calcula o intervalo de páginas a serem exibidas
@@ -35,7 +35,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'><i class='fas fa-chevron-right'></i></a>";
     }
 
     $paginacaoHTML .= '</div>';
@@ -389,8 +389,35 @@ $paginacaoHTML = paginarResultados($totalClientes, $itensPorPagina, $paginaAtual
             }
         }
 
+        .itens-por-pagina {
+            display: flex;
+            align-items: center;
+            /* Alinha verticalmente ao centro */
+            margin-bottom: 20px;
+        }
+
         .itensPagina {
             margin-left: 5px;
+        }
+
+        .itens-por-pagina label {
+            margin-right: 10px;
+            /* Espaço entre o label e o select */
+            font-weight: bold;
+        }
+
+        .itens-por-pagina select {
+            padding: 6px 10px;
+            font-size: 16px;
+            border: 1px solid black;
+            border-radius: 4px;
+        }
+
+        .itens-por-pagina select:focus {
+            outline: none;
+            /* Remove a borda do focus */
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+            /* Sombra azul suave no focus */
         }
     </style>
 </head>

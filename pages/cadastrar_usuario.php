@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .cadastro-box input[type="submit"] {
             padding: 10px;
-            background-color: #007bff;
+            background-color: #2c3e50;
             color: #fff;
             border: none;
             border-radius: 5px;
@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .cadastro-box input[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #6F6A6A;
         }
 
         .mensagem {

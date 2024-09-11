@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .login-box input[type="submit"] {
             padding: 10px;
-            background-color: #007bff;
+            background-color: #2c3e50;
             color: #fff;
             border: none;
             border-radius: 5px;
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .login-box input[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #6F6A6A;
         }
 
         .content-button {
@@ -132,9 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <h2>Login</h2>
             <form action="login.php" method="post">
                 <label for="usuario">Usuário:</label>
-                <input type="text" id="usuario" name="usuario" required>
+                <input type="text" id="usuario" name="usuario" placeholder="Digite o usuário" required>
                 <label for="senha">Senha:</label>
-                <input type="password" id="senha" name="senha" required>
+                <input type="password" id="senha" name="senha" placeholder="Digite a senha" required>
                 <?php if ($mensagemErro): ?>
                     <p class="erro"><?php echo $mensagemErro; ?></p>
                 <?php endif; ?>

@@ -19,7 +19,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&cpf=$cpf'>&laquo; Anterior</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&cpf=$cpf'><i class='fas fa-chevron-left'></i></a>";
     }
 
     // Limite de páginas visíveis
@@ -41,7 +41,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&cpf=$cpf'>Próximo &raquo;</a>";
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&cpf=$cpf'><i class='fas fa-chevron-right'></i></a>";
     }
 
     $paginacaoHTML .= '</div>';
@@ -80,11 +80,15 @@ if (!empty($cpf)) {
         $totalCompras = $stmtTotal->fetchColumn();
 
         // Busca as compras do cliente com paginação
-        $sqlCompras = "SELECT v.id AS id_compra, v.data_venda, v.preco_total, p.nome AS produto 
-                       FROM vendas v
-                       JOIN produtos p ON v.produto_id = p.id
-                       WHERE v.cliente_id = :clienteId
-                       LIMIT :itensPorPagina OFFSET :offset";
+        // Busca as compras do cliente com nome do cliente e nome do usuário
+        $sqlCompras = "SELECT v.data_venda, v.preco_total, p.nome AS produto, c.nome AS cliente, u.usuario AS vendedor
+        FROM vendas v
+        JOIN produtos p ON v.produto_id = p.id
+        JOIN clientes c ON v.cliente_id = c.id
+        JOIN usuarios u ON v.usuario_id = u.id
+        WHERE v.cliente_id = :clienteId
+        LIMIT :itensPorPagina OFFSET :offset";
+
         $stmtCompras = $conn->prepare($sqlCompras);
         $stmtCompras->bindParam(':clienteId', $clienteId);
         $stmtCompras->bindParam(':itensPorPagina', $itensPorPagina, PDO::PARAM_INT);
@@ -154,11 +158,13 @@ if (!empty($compras)) {
             border: 1px solid #ccc;
             border-radius: 5px;
             box-sizing: border-box;
+
+
         }
 
         input[type="submit"] {
-            background-color: #007bff;
-            color: white;
+            background-color: #2c3e50 !important;
+            color: black;
             padding: 10px 20px;
             border: none;
             border-radius: 5px;
@@ -166,7 +172,8 @@ if (!empty($compras)) {
         }
 
         input[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #6f6a6a !important;
+            color: #fff;
         }
 
         .compras-table {
@@ -184,7 +191,7 @@ if (!empty($compras)) {
         }
 
         .compras-table th {
-            background-color: #007bff;
+            background-color: #2c3e50;
             color: white;
         }
 
@@ -195,7 +202,7 @@ if (!empty($compras)) {
         .button-back {
             display: inline-block;
             padding: 10px 20px;
-            background-color: #007bff;
+            background-color: #2c3e50;
             color: #fff;
             text-decoration: none;
             border-radius: 5px;
@@ -203,7 +210,8 @@ if (!empty($compras)) {
         }
 
         .button-back:hover {
-            background-color: #0056b3;
+            background-color: #6f6a6a;
+            color: #fff;
         }
 
         /* Estilização da mensagem de erro */
@@ -225,63 +233,71 @@ if (!empty($compras)) {
             margin: 0 5px;
             border-radius: 5px;
             text-decoration: none;
-            color: #007bff;
-            background-color: #f8f9fa;
+            background-color: white;
             border: 1px solid #ddd;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            font-weight: bold;
+        }
+
+        .paginacao a {
+            color: #000;
+            /* Cor do link */
         }
 
         .paginacao a:hover {
-            background-color: #007bff;
+            background-color: #6f6a6a;
+            /* Cor de fundo no hover */
             color: #fff;
+            /* Cor do texto no hover */
         }
 
         .paginacao .pagina-atual {
+            /* Estilo para a página atual */
             font-weight: bold;
             color: #fff;
-            background-color: #007bff;
+            background-color: #6f6a6a;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="box">
-            <h2>Ver Compras</h2>
-            <form action="painel.php?page=ver_compras" method="post">
-                <label for="cpf">Insira seu CPF:</label>
-                <input type="text" id="cpf" name="cpf" required>
-                <?php if ($mensagemErro): ?>
-                    <p class="erro"><?php echo $mensagemErro; ?></p>
-                <?php endif; ?>
-                <input type="submit" value="Buscar Compras">
-            </form>
+    <div class="box">
+        <h2>Ver Compras</h2>
+        <form method="POST" action="">
+            <label for="cpf">Digite o CPF do Cliente:</label>
+            <input type="text" name="cpf" id="cpf" value="<?php echo htmlspecialchars($cpf); ?>" required>
+            <input type="submit" value="Buscar Compras">
+        </form>
 
-            <?php if (!empty($compras)): ?>
-                <table class="compras-table">
-                    <thead>
+        <?php if ($mensagemErro): ?>
+            <p class="erro"><?php echo htmlspecialchars($mensagemErro); ?></p>
+        <?php endif; ?>
+
+        <?php if (!empty($compras)): ?>
+            <table class="compras-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Produto</th>
+                        <th>Nome do Cliente</th>
+                        <th>Nome do Vendedor</th>
+                        <th>Valor Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($compras as $compra): ?>
                         <tr>
-                            <th>ID da Compra</th>
-                            <th>Data</th>
-                            <th>Produto</th>
-                            <th>Valor Total</th>
+                            <td><?php echo htmlspecialchars($compra['data_venda']); ?></td>
+                            <td><?php echo htmlspecialchars($compra['produto']); ?></td>
+                            <td><?php echo htmlspecialchars($compra['cliente']); ?></td>
+                            <td><?php echo htmlspecialchars($compra['vendedor']); ?></td>
+                            <td><?php echo htmlspecialchars($compra['preco_total']); ?></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($compras as $compra): ?>
-                            <tr>
-                                <td><?php echo $compra['id_compra']; ?></td>
-                                <td><?php echo $compra['data_venda']; ?></td>
-                                <td><?php echo $compra['produto']; ?></td>
-                                <td><?php echo $compra['preco_total']; ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <!-- Exibir a paginação apenas se houver mais de 3 registros -->
-                <?php if (isset($paginacaoHTML)) echo $paginacaoHTML; ?>
-            <?php endif; ?>
-            <a href="painel.php" class="button-back">Voltar</a>
-        </div>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php echo $paginacaoHTML; ?>
+        <?php endif; ?>
     </div>
 </body>
 

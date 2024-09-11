@@ -1,89 +1,42 @@
 <?php
-include 'includes/conexao.php';
-include 'funcoes_log.php';
+include 'includes/conexao.php'; // Inclua sua conexão com o banco de dados
 
-// Função para obter produtos e clientes
-function obterProdutos($conn)
-{
-    $stmt = $conn->query("SELECT id, nome, preco FROM produtos WHERE situacao = 'ativo'");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function obterClientes($conn)
-{
-    $stmt = $conn->query("SELECT id, nome FROM clientes WHERE situacao = 'ativo'");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Verifica se o usuário está autenticado
-if (!isset($_SESSION['perfil']) || ($_SESSION['perfil'] !== 'admin' && $_SESSION['perfil'] !== 'vendedor')) {
-    header('Location: nao_autorizado.php');
-    exit();
-}
-
-// Obtém o nome do usuário logado (assumindo que você armazena isso na sessão)
-$usuarioLogado = $_SESSION['usuario'];
-$usuario_id = $_SESSION['usuario_id'];
-
-// Variável para controlar exibição do modal
+// Verificar se a venda foi cadastrada com sucesso e exibir o modal
 $showModal = false;
-
-// Lógica de submissão do formulário
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Adicionar lógica para processar o formulário e salvar no banco de dados
     $produto_id = $_POST['produto_id'];
     $cliente_id = $_POST['cliente_id'];
     $quantidade = $_POST['quantidade'];
     $preco_total = $_POST['preco_total'];
     $data_venda = $_POST['data_venda'];
 
-    // Verificando se a data inserida está no ano atual
- // Verificando se a data inserida está no mês atual
-$data_venda_timestamp = strtotime($data_venda);
-$ano_atual = date('Y');
-$mes_atual = date('m');
-$data_inicio_mes = strtotime("$ano_atual-$mes_atual-01");
-$data_fim_mes = strtotime(date("Y-m-t", $data_inicio_mes)); // Último dia do mês atual
-
-if ($data_venda_timestamp < $data_inicio_mes || $data_venda_timestamp > $data_fim_mes) {
-    echo "<script>alert('Erro: A data da venda deve estar dentro do mês atual.');</script>";
-} else {
+    // Verifique se os dados estão corretos e insira no banco de dados
     try {
-        // Inserindo a venda no banco de dados
-        $sql = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) 
-                VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda, :usuario_id)";
-        $stmt = $conn->prepare($sql);
+        $stmt = $conn->prepare("INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda) VALUES (:produto_id, :cliente_id, :quantidade, :preco_total, :data_venda)");
         $stmt->bindParam(':produto_id', $produto_id);
         $stmt->bindParam(':cliente_id', $cliente_id);
         $stmt->bindParam(':quantidade', $quantidade);
         $stmt->bindParam(':preco_total', $preco_total);
         $stmt->bindParam(':data_venda', $data_venda);
-        $stmt->bindParam(':usuario_id', $usuario_id);
-
-        if ($stmt->execute()) {
-            // Registra a ação no log
-            $mudancas = [
-                "Produto ID: $produto_id",
-                "Cliente ID: $cliente_id",
-                "Quantidade: $quantidade",
-                "Preço Total: R$ $preco_total",
-                "Data da Venda: $data_venda",
-            ];
-            $descricaoMudancas = implode("; ", $mudancas);
-            $comandoSqlCompleto = "INSERT INTO vendas (produto_id, cliente_id, quantidade, preco_total, data_venda, usuario_id) VALUES ($produto_id, $cliente_id, $quantidade, $preco_total, '$data_venda', $usuario_id)";
-            registrarLog($conn, $usuarioLogado, 'Inserção', 'vendas', $comandoSqlCompleto, '', $descricaoMudancas);
-
-            $showModal = true; // Mostrar modal ao cadastrar com sucesso
-        } else {
-            echo "Erro ao cadastrar venda.";
-        }
+        $stmt->execute();
+        $showModal = true;
     } catch (PDOException $e) {
-        echo "Erro ao cadastrar venda: " . $e->getMessage();
+        // Gerenciar erro
+        echo 'Erro: ' . $e->getMessage();
     }
 }
-}
 
-$produtos = obterProdutos($conn);
-$clientes = obterClientes($conn);
+// Buscar produtos e clientes
+try {
+    $stmt = $conn->query("SELECT id, nome, preco FROM produtos");
+    $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $conn->query("SELECT id, nome FROM clientes");
+    $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    echo 'Erro: ' . $e->getMessage();
+}
 ?>
 
 <!DOCTYPE html>
@@ -165,6 +118,10 @@ $clientes = obterClientes($conn);
             text-decoration: none;
             cursor: pointer;
         }
+
+        .info-produto {
+            margin-top: 20px;
+        }
     </style>
 </head>
 
@@ -190,9 +147,6 @@ $clientes = obterClientes($conn);
         <label for="quantidade">Quantidade:</label>
         <input type="number" name="quantidade" id="quantidade" placeholder="Quantidade" required>
 
-        <label for="preco_produto" style="display: none;">Preço do Produto:</label>
-        <input type="text" id="preco_produto" style="display: none;">
-
         <label for="preco_total">Preço Total:</label>
         <input type="number" name="preco_total" id="preco_total" placeholder="Preço Total" required readonly>
 
@@ -201,6 +155,9 @@ $clientes = obterClientes($conn);
 
         <button class="btn" type="submit">Cadastrar Venda</button>
     </form>
+
+    <label for="info_produto">Informações do Produto:</label>
+    <div id="info_produto" class="info-produto"></div>
 
     <!-- Modal de sucesso -->
     <div id="successModal" class="modal">
@@ -211,78 +168,115 @@ $clientes = obterClientes($conn);
     </div>
 
     <script>
-        function calcularPrecoTotal() {
-            const precoInput = document.getElementById('preco_produto');
-            const quantidadeInput = document.getElementById('quantidade');
-            const precoTotalInput = document.getElementById('preco_total');
+        let precoProduto = 0;
 
-            const preco = parseFloat(precoInput.value);
+        function atualizarPrecoTotal() {
+            const produtoSelect = document.getElementById('produto_id');
+            const precoTotalInput = document.getElementById('preco_total');
+            const selectedOption = produtoSelect.options[produtoSelect.selectedIndex];
+            precoProduto = parseFloat(selectedOption.dataset.preco);
+            if (!isNaN(precoProduto)) {
+                precoTotalInput.value = precoProduto.toFixed(2);
+            } else {
+                precoTotalInput.value = '';
+            }
+        }
+
+        function calcularPrecoTotal() {
+            const precoTotalInput = document.getElementById('preco_total');
+            const quantidadeInput = document.getElementById('quantidade');
             const quantidade = parseInt(quantidadeInput.value, 10);
 
-            if (!isNaN(preco) && !isNaN(quantidade)) {
-                precoTotalInput.value = (preco * quantidade).toFixed(2);
+            if (!isNaN(quantidade) && quantidade > 0) {
+                precoTotalInput.value = (precoProduto * quantidade).toFixed(2);
             } else {
-                precoTotalInput.value = '0.00';
+                precoTotalInput.value = precoProduto.toFixed(2);
             }
         }
 
-        function atualizarPreco() {
-            const produtoSelect = document.getElementById('produto_id');
-            const precoInput = document.getElementById('preco_produto');
-
-            const selectedOption = produtoSelect.options[produtoSelect.selectedIndex];
-            precoInput.value = selectedOption.dataset.preco;
-
-            calcularPrecoTotal();
-        }
-
-        function validarData() {
+        function definirDataAtual() {
             const dataVendaInput = document.getElementById('data_venda');
-            const dataVenda = new Date(dataVendaInput.value);
             const hoje = new Date();
 
-            if (dataVenda > hoje) {
-                alert('A data da venda não pode ser futura.');
-                return false;
-            }
-            return true;
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const ano = hoje.getFullYear();
+
+            dataVendaInput.value = `${ano}-${mes}-${dia}`;
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('produto_id').addEventListener('change', atualizarPreco);
-            document.getElementById('quantidade').addEventListener('input', calcularPrecoTotal);
-            document.querySelector('form').addEventListener('submit', function(event) {
-                if (!validarData()) {
-                    event.preventDefault(); // Evita o envio do formulário se a data não for válida
-                }
+        function buscarInformacoesProduto() {
+            const produtoSelect = document.getElementById('produto_id');
+            const infoProdutoDiv = document.getElementById('info_produto');
+            const produtoId = produtoSelect.value;
+
+            if (produtoId) {
+                fetch(`?acao=info_produto&id=${produtoId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            infoProdutoDiv.innerHTML = `<p>${data.error}</p>`;
+                        } else {
+                            infoProdutoDiv.innerHTML = `
+                                <p><strong>Nome:</strong> ${data.nome}</p>
+                                <p><strong>Preço:</strong> R$ ${data.preco}</p>
+                                <p><strong>Descrição:</strong> ${data.descricao}</p>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        infoProdutoDiv.innerHTML = `<p>Erro ao buscar informações do produto.</p>`;
+                    });
+            } else {
+                infoProdutoDiv.innerHTML = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            definirDataAtual();
+
+            document.getElementById('produto_id').addEventListener('change', function () {
+                atualizarPrecoTotal();
+                buscarInformacoesProduto();
             });
 
-            // Mostrar o modal se necessário
+            document.getElementById('quantidade').addEventListener('input', function () {
+                calcularPrecoTotal();
+            });
+
             <?php if ($showModal): ?>
-                document.getElementById('successModal').style.display = 'flex';
+                document.getElementById('successModal').style.display = 'block';
             <?php endif; ?>
         });
 
         function closeModal() {
             document.getElementById('successModal').style.display = 'none';
-            window.location.href = 'painel.php?page=cadastro_vendas';
-        }
-
-        function validarData() {
-            const dataVendaInput = document.getElementById('data_venda');
-            const dataVenda = new Date(dataVendaInput.value);
-            const anoAtual = new Date().getFullYear();
-
-            // Verifica se a data está no ano atual
-            if (dataVenda.getFullYear() !== anoAtual) {
-                alert('A data da venda deve estar dentro do ano atual.');
-                return false;
-            }
-            
-
-            return true;
         }
     </script>
 </body>
 
 </html>
+
+<?php
+// Verificar se é uma requisição AJAX para retornar as informações do produto
+if (isset($_GET['acao']) && $_GET['acao'] == 'info_produto' && isset($_GET['id'])) {
+    $produtoId = $_GET['id'];
+
+    try {
+        $stmt = $conn->prepare("SELECT nome, preco, descricao FROM produtos WHERE id = :id");
+        $stmt->bindParam(':id', $produtoId);
+        $stmt->execute();
+        $produto = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($produto) {
+            echo json_encode($produto);
+        } else {
+            echo json_encode(['error' => 'Produto não encontrado.']);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['error' => 'Erro ao buscar informações do produto.']);
+    }
+
+    exit;
+}
+?>

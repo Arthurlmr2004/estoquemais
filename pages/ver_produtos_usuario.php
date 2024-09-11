@@ -13,6 +13,39 @@ if ($offset < 0) {
     $offset = 0;
 }
 
+function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '')
+{
+    $totalPaginas = ceil($totalRegistros / $itensPorPagina);
+    $paginacaoHTML = '<div class="pagination">';
+
+    // Botão "Anterior"
+    if ($paginaAtual > 1) {
+        $paginaAnterior = $paginaAtual - 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'>Anterior</a>";
+    }
+
+    // Lógica para mostrar 3 links (adaptar se necessário)
+    $inicio = max(1, $paginaAtual - 1);
+    $fim = min($totalPaginas, $paginaAtual + 1);
+
+    for ($i = $inicio; $i <= $fim; $i++) {
+        if ($i == $paginaAtual) {
+            $paginacaoHTML .= "<span class='active'>$i</span>";
+        } else {
+            $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$i&itensPorPagina=$itensPorPagina'>$i</a>";
+        }
+    }
+
+    // Botão "Próximo"
+    if ($paginaAtual < $totalPaginas) {
+        $paginaProxima = $paginaAtual + 1;
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>";
+    }
+
+    $paginacaoHTML .= '</div>';
+    return $paginacaoHTML;
+}
+
 /// Busque o total de produtos
 $sql_total = "SELECT COUNT(*) FROM produtos";
 $stmt_total = $conn->prepare($sql_total);
@@ -239,19 +272,10 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Navegação de Paginação -->
     <div class="pagination">
-        <?php if ($page > 1): ?>
-            <a href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $page - 1; ?>"> Anterior</a>
-        <?php endif; ?>
-
-        <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-            <a class="<?php echo $i == $page ? 'active' : ''; ?>" href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $i; ?>">
-                <?php echo $i; ?>
-            </a>
-        <?php endfor; ?>
-
-        <?php if ($page < $total_paginas): ?>
-            <a href="painel.php?page=ver_produtos_usuario&itensPorPagina=<?php echo $produtos_por_pagina; ?>&pagina=<?php echo $page + 1; ?>">Próxima </a>
-        <?php endif; ?>
+        <?php
+        $paginaBaseUrl = "painel.php?page=ver_produtos_usuario&itensPorPagina=$produtos_por_pagina";
+        echo paginarResultados($total_produtos, $produtos_por_pagina, $page, $paginaBaseUrl);
+        ?>
     </div>
 </body>
 

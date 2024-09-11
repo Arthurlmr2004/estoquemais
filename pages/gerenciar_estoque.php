@@ -290,21 +290,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
 
         /* Estilos para o select de quantidade de itens por página */
         .itens-por-pagina {
+            display: flex;
+            align-items: center;
+            /* Alinha verticalmente ao centro */
             margin-bottom: 20px;
-            display: block;
-            width: 100%;
         }
 
         .itens-por-pagina label {
-            display: block;
-            margin-bottom: 5px;
+            margin-right: 10px;
+            /* Espaço entre o label e o select */
+            font-weight: bold;
         }
 
         .itens-por-pagina select {
             padding: 6px 10px;
             font-size: 16px;
-            
+            border: 1px solid black;
             border-radius: 4px;
+        }
+
+        .itens-por-pagina select:focus {
+            outline: none;
+            /* Remove a borda do focus */
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+            /* Sombra azul suave no focus */
         }
 
         .btn-warning {
@@ -327,8 +336,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             opacity: 0.8;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
         }
-
-       
     </style>
 </head>
 
@@ -336,9 +343,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
     <h2>Gerenciar Estoque</h2>
 
     <!-- Itens por Página -->
-    <div class="itens-por-pagina" >
-        <label for="itensPorPagina" >Itens por Página:</label>
-        <select id="itensPorPagina"  onchange="window.location.href='?page=gerenciar_estoque&itensPorPagina=' + this.value;">
+    <div class="itens-por-pagina">
+        <label for="itensPorPagina">Itens por Página:</label>
+        <select id="itensPorPagina" onchange="window.location.href='?page=gerenciar_estoque&itensPorPagina=' + this.value;">
             <option value="5" <?php if ($itensPorPagina == 5) echo 'selected'; ?>>5</option>
             <option value="10" <?php if ($itensPorPagina == 10) echo 'selected'; ?>>10</option>
         </select>

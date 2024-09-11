@@ -164,7 +164,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             display: inline-block;
             padding: 10px 20px;
             cursor: pointer;
-            background-color: #007bff;
+            background-color: #2C3E50;
             color: white;
             border-radius: 5px;
             border: none;
@@ -174,7 +174,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         /* Efeito de hover para o rótulo */
         .custom-file-upload:hover {
-            background-color: #0056b3;
+            background-color: #6f6a6a;
         }
 
         .btn {
@@ -183,11 +183,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             padding: 10px 20px;
             font-size: 16px;
             color: white;
-            background-color: #007bff;
+            background-color: #2C3E50;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #6f6a6a;
         }
 
         /* Estilo para a visualização da imagem */
