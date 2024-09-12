@@ -123,6 +123,33 @@ $paginacaoHTML = paginarLogs($totalLogs, $itensPorPagina, $paginaAtual, $paginaB
             color: #fff;
         }
 
+        td {
+            word-wrap: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+            /* Limita o tamanho das células */
+        }
+
+        td.dados {
+            max-width: 250px;
+            /* Tamanho máximo para os dados */
+            word-wrap: break-word;
+            /* Quebra de linha automática */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* Adiciona reticências para textos longos */
+        }
+
+        td.dados:hover {
+            white-space: normal;
+            /* Exibe o texto completo ao passar o mouse */
+            overflow: visible;
+            text-overflow: unset;
+        }
+
         /* Estilos para linhas pares e ímpares */
         table tbody tr:nth-child(even) {
             background-color: #f9f9f9;
@@ -145,6 +172,8 @@ $paginacaoHTML = paginarLogs($totalLogs, $itensPorPagina, $paginaAtual, $paginaB
                 <th>Ação</th>
                 <th>Tabela</th>
                 <th>Data e Hora</th>
+                <th>Dados Antigos</th>
+                <th>Dados Novos</th>
                 <th>IP</th>
             </tr>
         </thead>
@@ -155,6 +184,8 @@ $paginacaoHTML = paginarLogs($totalLogs, $itensPorPagina, $paginaAtual, $paginaB
                     <td><?php echo htmlspecialchars($log['acao']); ?></td>
                     <td><?php echo htmlspecialchars($log['tabela']); ?></td>
                     <td><?php echo htmlspecialchars($log['data_hora']); ?></td>
+                    <td><?php echo htmlspecialchars($log['dados_antigos']); ?></td>
+                    <td><?php echo htmlspecialchars($log['dados_novos']); ?></td>
                     <td><?php echo htmlspecialchars($log['ip']); ?></td>
                 </tr>
             <?php endforeach; ?>

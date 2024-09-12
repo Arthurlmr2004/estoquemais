@@ -489,12 +489,11 @@ $paginacaoHTML = paginarResultados($totalProdutos, $itensPorPagina, $paginaAtual
     <!-- Filtro e Itens por Página -->
     <div class="filtro-container">
         <label for="situacao">Filtro:</label>
-        <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_produtos&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">
+        <select id="situacao" onchange="window.location.href='?page=mostrar_produtos&situacao=' + this.value + '&itensPorPagina=<?php echo $itensPorPagina; ?>&pagina=<?php echo $paginaAtual; ?>';">
             <option value="todos" <?php echo ($situacaoFiltro === 'todos') ? 'selected' : ''; ?>>Todos</option>
             <option value="ativo" <?php echo ($situacaoFiltro === 'ativo') ? 'selected' : ''; ?>>Ativos</option>
             <option value="inativo" <?php echo ($situacaoFiltro === 'inativo') ? 'selected' : ''; ?>>Inativos</option>
         </select>
-
 
         <label for="itensPorPagina" class="itensPagina">Itens por Página:</label>
         <select id="itensPorPagina" onchange="window.location.href='?page=mostrar_produtos&situacao=<?php echo $situacaoFiltro; ?>&itensPorPagina=' + this.value + '&pagina=1';">

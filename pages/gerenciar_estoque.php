@@ -28,7 +28,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Anterior"
     if ($paginaAtual > 1) {
         $paginaAnterior = $paginaAtual - 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'> Anterior</a>"; // Adiciona itensPorPagina
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaAnterior&itensPorPagina=$itensPorPagina'><i class='fas fa-chevron-left'></i></a>"; // Adiciona itensPorPagina
     }
 
     // Calcula o intervalo de páginas a serem exibidas
@@ -47,7 +47,7 @@ function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $
     // Botão "Próximo"
     if ($paginaAtual < $totalPaginas) {
         $paginaProxima = $paginaAtual + 1;
-        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'>Próximo</a>"; // Adiciona itensPorPagina
+        $paginacaoHTML .= "<a href='{$paginaBaseUrl}&pagina=$paginaProxima&itensPorPagina=$itensPorPagina'><i class='fas fa-chevron-right'></i></a>"; // Adiciona itensPorPagina
     }
 
     $paginacaoHTML .= '</div>';
@@ -420,6 +420,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
 
         function fecharModal() {
             document.getElementById('modal-editar').style.display = 'none';
+
+
         }
 
         function mostrarModalSucesso() {
@@ -428,6 +430,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
 
         function fecharModalSucesso() {
             document.getElementById('modal-sucesso').style.display = 'none';
+            var urlAtual = new URL(window.location.href);
+
+            // Redireciona para a URL atual
+            window.location.href = urlAtual;
         }
 
         function salvarEdicao() {
@@ -461,6 +467,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
                     } else {
                         alert('Erro na solicitação: ' + xhr.status);
                     }
+
                 }
             };
 
@@ -475,7 +482,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['atualizar'])) {
             sucessoModal.style.display = 'flex';
             setTimeout(function() {
                 sucessoModal.style.display = 'none';
-            }, 10000); // Fecha o modal após 3 segundos
+                window.location.href = 'painel.php?page=gerenciar_estoque';
+            }, 6000); // Fecha o modal após 10 segundos
+
         }
     </script>
 

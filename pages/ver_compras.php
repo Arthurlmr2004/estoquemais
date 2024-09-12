@@ -10,6 +10,9 @@ $mensagemErro = "";
 $compras = [];
 $cpf = ""; // Inicializa o CPF
 
+// Ativar o modo de erros do PDO
+$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 // Função para paginação
 function paginarResultados($totalRegistros, $itensPorPagina, $paginaAtual = 1, $paginaBaseUrl = '', $cpf = '')
 {
@@ -60,6 +63,10 @@ if (isset($_POST['cpf'])) {
     $cpf = $_GET['cpf']; // CPF vindo da URL para paginação
 }
 
+// Limpa o CPF removendo caracteres especiais (se necessário)
+$cpf = preg_replace('/[^0-9]/', '', $cpf);
+
+// Verifica se o CPF não está vazio
 if (!empty($cpf)) {
     // Busca o ID do cliente com base no CPF
     $sqlCliente = "SELECT id FROM clientes WHERE cpf = :cpf";
@@ -71,6 +78,7 @@ if (!empty($cpf)) {
     // Verifica se o cliente existe
     if ($cliente) {
         $clienteId = $cliente['id'];
+        // Verifica se o cliente foi encontrado
 
         // Contagem total de compras para paginação
         $sqlTotal = "SELECT COUNT(*) FROM vendas WHERE cliente_id = :clienteId";
@@ -80,8 +88,7 @@ if (!empty($cpf)) {
         $totalCompras = $stmtTotal->fetchColumn();
 
         // Busca as compras do cliente com paginação
-        // Busca as compras do cliente com nome do cliente e nome do usuário
-        $sqlCompras = "SELECT v.data_venda, v.preco_total, p.nome AS produto, c.nome AS cliente, u.usuario AS vendedor
+        $sqlCompras = "SELECT v.data_venda, v.preco_total, p.nome AS produto, p.imagem AS imagem_produto, c.nome AS cliente, u.usuario AS vendedor
         FROM vendas v
         JOIN produtos p ON v.produto_id = p.id
         JOIN clientes c ON v.cliente_id = c.id
@@ -99,6 +106,8 @@ if (!empty($cpf)) {
         // Verifica se o cliente possui compras
         if (empty($compras)) {
             $mensagemErro = "Nenhuma compra encontrada para este CPF.";
+        } else {
+            // Verifica o número de compras encontradas
         }
     } else {
         $mensagemErro = "Nenhum cliente encontrado com este CPF.";
@@ -138,7 +147,6 @@ if (!empty($compras)) {
 
         h2 {
             background-color: white;
-
         }
 
         form {
@@ -158,8 +166,6 @@ if (!empty($compras)) {
             border: 1px solid #ccc;
             border-radius: 5px;
             box-sizing: border-box;
-
-
         }
 
         input[type="submit"] {
@@ -214,13 +220,11 @@ if (!empty($compras)) {
             color: #fff;
         }
 
-        /* Estilização da mensagem de erro */
         .erro {
             color: red;
             font-weight: bold;
         }
 
-        /* Estilização da paginação */
         .paginacao {
             text-align: center;
             margin: 20px 0;
@@ -241,63 +245,85 @@ if (!empty($compras)) {
 
         .paginacao a {
             color: #000;
-            /* Cor do link */
         }
 
         .paginacao a:hover {
             background-color: #6f6a6a;
-            /* Cor de fundo no hover */
             color: #fff;
-            /* Cor do texto no hover */
         }
 
         .paginacao .pagina-atual {
-            /* Estilo para a página atual */
-            font-weight: bold;
-            color: #fff;
             background-color: #6f6a6a;
+            color: #fff;
+        }
+
+        .compras-table td:nth-child(2) {
+            /* Seleciona a segunda coluna (índice 1) */
+            text-align: center;
+            /* Centraliza a imagem */
+        }
+
+        .compras-table img {
+            max-width: 80px;
+            /* Define a largura máxima da imagem */
+            max-height: 60px;
+            /* Define a altura máxima da imagem */
+            object-fit: cover;
+            /* Ajusta a imagem para caber na célula */
         }
     </style>
 </head>
 
 <body>
     <div class="box">
-        <h2>Ver Compras</h2>
-        <form method="POST" action="">
-            <label for="cpf">Digite o CPF do Cliente:</label>
-            <input type="text" name="cpf" id="cpf" value="<?php echo htmlspecialchars($cpf); ?>" required>
-            <input type="submit" value="Buscar Compras">
+        <h2>Histórico de Compras</h2>
+        <form method="POST">
+            <label for="cpf">Digite o CPF do cliente:</label>
+            <input type="text" id="cpf" name="cpf" value="<?php echo htmlspecialchars($cpf); ?>" placeholder="CPF do cliente">
+            <input type="submit" value="Pesquisar">
         </form>
 
-        <?php if ($mensagemErro): ?>
-            <p class="erro"><?php echo htmlspecialchars($mensagemErro); ?></p>
+        <?php if (!empty($mensagemErro)): ?>
+            <p class="erro"><?php echo $mensagemErro; ?></p>
         <?php endif; ?>
 
         <?php if (!empty($compras)): ?>
             <table class="compras-table">
                 <thead>
                     <tr>
-                        <th>Data</th>
+                        <th>Data da Venda</th>
                         <th>Produto</th>
-                        <th>Nome do Cliente</th>
-                        <th>Nome do Vendedor</th>
-                        <th>Valor Total</th>
+                        <th>Preço Total</th>
+                        <th>Cliente</th>
+                        <th>Vendedor</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($compras as $compra): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($compra['data_venda']); ?></td>
-                            <td><?php echo htmlspecialchars($compra['produto']); ?></td>
+                            <td>
+                                <?php if (!empty($compra['imagem_produto'])): ?>
+                                    <img src="imagens/<?php echo htmlspecialchars($compra['imagem_produto']); ?>" alt="Imagem do Produto">
+                                <?php else: ?>
+                                    Sem Imagem
+                                <?php endif; ?>
+                                <br>
+                                <?php echo htmlspecialchars($compra['produto']); ?>
+                            </td>
+                            <td><?php echo htmlspecialchars($compra['preco_total']); ?></td>
                             <td><?php echo htmlspecialchars($compra['cliente']); ?></td>
                             <td><?php echo htmlspecialchars($compra['vendedor']); ?></td>
-                            <td><?php echo htmlspecialchars($compra['preco_total']); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            <?php echo $paginacaoHTML; ?>
+
+            <?php if (!empty($paginacaoHTML)): ?>
+                <?php echo $paginacaoHTML; ?>
+            <?php endif; ?>
         <?php endif; ?>
+        <a href="javascript:history.back()" class="button-back">Voltar</a>
     </div>
 </body>
 

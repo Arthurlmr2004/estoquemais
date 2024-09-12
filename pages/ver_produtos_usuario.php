@@ -241,6 +241,7 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- Adicione mais opções conforme necessário -->
         </select>
     </div>
+
     <table>
         <thead>
             <tr>
@@ -249,7 +250,7 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <th>Descrição</th>
                 <th>Preço</th>
                 <th>Quantidade</th>
-                <th>Imagem</th>
+                <th>Imagem</th> 
             </tr>
         </thead>
         <tbody>
@@ -262,7 +263,9 @@ $produtos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo $produto['quantidade']; ?></td>
                     <td>
                         <?php if (!empty($produto['imagem'])): ?>
-                            <img src="<?php echo $produto['imagem']; ?>" alt="Imagem do Produto">
+                            <img src="imagens/<?php echo $produto['imagem']; ?>" alt="Imagem do Produto" height="50"> 
+                        <?php else: ?>
+                            Sem Imagem
                         <?php endif; ?>
                     </td>
                 </tr>
